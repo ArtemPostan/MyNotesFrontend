@@ -1,234 +1,138 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import axios from 'axios';
 
-const API_URL = "http://localhost:8080/api/notes";
-const AUTH_URL = "http://localhost:8080/api/auth";
+// Если тестируешь локально — используй localhost. 
+// Если в облаке — замени на свой URL из Яндекс.Облака.
+const API_URL = "https://bbac22ncehpq498kutp5.containers.yandexcloud.net";
 
 function App() {
-
-    // токен теперь в состоянии
-    const [token, setToken] = useState(() => localStorage.getItem('userToken'));
-    const [activeUser, setActiveUser] = useState(() => localStorage.getItem('username') || '');
-
-    const [notes, setNotes] = useState([]);
-    const [content, setContent] = useState('');
+    const [users, setUsers] = useState([]);
+    const [isLogin, setIsLogin] = useState(true);
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [name, setName] = useState(''); // Добавили стейт для имени
     const [message, setMessage] = useState('');
 
-    const [lUser, setLUser] = useState('');
-    const [lPass, setLPass] = useState('');
-    const [rUser, setRUser] = useState('');
-    const [rPass, setRPass] = useState('');
-
-    const isLoggedIn = !!token;
-
-    const handleLogout = useCallback(() => {
-        localStorage.removeItem('userToken');
-        localStorage.removeItem('username');
-
-        setToken(null);
-        setNotes([]);
-        setActiveUser('');
-    }, []);
-
-    const fetchNotes = useCallback(async (token) => {
-
-    const res = await axios.get(API_URL, {
-        headers: { Authorization: `Basic ${token}` }
-    });
-
-    return res.data;
-
-}, []);
+    const fetchUsers = async () => {
+        try {
+            const res = await axios.get(`${API_URL}/users`);
+            setUsers(res.data);
+        } catch (err) {
+            console.error("Ошибка загрузки списка:", err);
+        }
+    };
 
     useEffect(() => {
+        const loadData = async () => {
+            await fetchUsers();
+        };
+        loadData();
+    }, []);
 
-    const loadNotes = async () => {
+    const handleAuth = async (e) => {
+        e.preventDefault();
+        // ВАЖНО: Путь должен совпадать с @RequestMapping в Java
+        const endpoint = isLogin ? '/api/auth/login' : '/api/auth/register';
+
+        const payload = isLogin
+            ? { email, password }
+            : { email, password, name }; // Для регистрации отправляем еще и имя
 
         try {
-            const data = await fetchNotes(token);
-            setNotes(data);
-        } catch (error) {
+            setMessage("Загрузка...");
+            const res = await axios.post(`${API_URL}${endpoint}`, payload);
 
-            console.error("Fetch error:", error);
+            setMessage(`Успех: ${isLogin ? 'Вы вошли!' : 'Вы зарегистрированы!'}`);
+            console.log("Ответ сервера:", res.data);
 
-            if (error.response?.status === 401) {
-                handleLogout();
+            if (isLogin) {
+                // Пока просто выводим имя вошедшего
+                setMessage(`Привет, ${res.data.name || 'пользователь'}!`);
+            } else {
+                // После регистрации очистим форму и переключим на вход
+                setTimeout(() => {
+                    setIsLogin(true);
+                    setMessage('Теперь войдите в аккаунт');
+                }, 2000);
             }
-        }
-    };
-
-    if (token) {
-        loadNotes();
-    }
-
-}, [token, fetchNotes, handleLogout]);
-
-    const handleRegister = async (e) => {
-
-        e.preventDefault();
-
-        if (!rUser.trim() || !rPass.trim()) {
-            setMessage("Ошибка: Поля не могут быть пустыми!");
-            return;
-        }
-
-        try {
-
-            await axios.post(`${AUTH_URL}/register`, {
-                username: rUser,
-                password: rPass
-            });
-
-            setMessage("Регистрация ок! Теперь входите.");
-
-            setRUser('');
-            setRPass('');
-
-        } catch {
-
-            setMessage("Ошибка: возможно, логин занят");
-
-        }
-    };
-
-    const handleLogin = async (e) => {
-
-        e.preventDefault();
-
-        try {
-
-            const newToken = btoa(`${lUser}:${lPass}`);
-
-            await axios.post(`${AUTH_URL}/login`, null, {
-                headers: { 'Authorization': `Basic ${newToken}` }
-            });
-
-            localStorage.setItem('userToken', newToken);
-            localStorage.setItem('username', lUser);
-
-            setToken(newToken);
-            setActiveUser(lUser);
-
-            setLUser('');
-            setLPass('');
-
-            setMessage("Вы вошли!");
-
-        } catch {
-
-            setMessage("Неверный логин или пароль");
-
-        }
-    };
-
-    const handleSaveNote = async (e) => {
-
-        e.preventDefault();
-
-        try {
-
-            await axios.post(API_URL, { content }, {
-                headers: { 'Authorization': `Basic ${token}` }
-            });
-
-            setContent('');
-
-            fetchNotes(token);
-
-        } catch {
-
-            alert("Ошибка сохранения");
-
+        } catch (err) {
+            console.error("Ошибка запроса:", err);
+            const errorMsg = err.response?.data?.message || err.response?.data || "Ошибка сервера";
+            setMessage("Ошибка: " + errorMsg);
         }
     };
 
     return (
-        <div style={{ padding: '20px', maxWidth: '500px', margin: '0 auto', fontFamily: 'sans-serif' }}>
+        <div style={{ padding: '20px', fontFamily: 'sans-serif', maxWidth: '400px', margin: '0 auto' }}>
+            <h1>MyNotes 📝</h1>
 
-            <h2>Notes App 📝</h2>
-
-            {message && <p style={{ color: 'blue' }}>{message}</p>}
-
-            {!isLoggedIn ? (
-
-                <div>
-
-                    <div style={{ border: '1px solid #ccc', padding: '10px', marginBottom: '10px' }}>
-
-                        <h3>Регистрация</h3>
-
+            <div style={{ border: '1px solid #ccc', padding: '20px', borderRadius: '8px', backgroundColor: '#f9f9f9' }}>
+                <h3>{isLogin ? 'Вход' : 'Регистрация'}</h3>
+                <form onSubmit={handleAuth}>
+                    {!isLogin && ( // Поле имени показываем только при регистрации
+                        <div style={{ marginBottom: '10px' }}>
+                            <input
+                                style={{ width: '100%', padding: '8px' }}
+                                type="text" placeholder="Ваше имя" value={name}
+                                onChange={e => setName(e.target.value)} required
+                            />
+                        </div>
+                    )}
+                    <div style={{ marginBottom: '10px' }}>
                         <input
-                            placeholder="Логин"
-                            value={rUser}
-                            onChange={e => setRUser(e.target.value)}
+                            style={{ width: '100%', padding: '8px' }}
+                            type="email" placeholder="Email" value={email}
+                            onChange={e => setEmail(e.target.value)} required
                         />
-
-                        <input
-                            type="password"
-                            placeholder="Пароль"
-                            value={rPass}
-                            onChange={e => setRPass(e.target.value)}
-                        />
-
-                        <button onClick={handleRegister}>Создать</button>
-
                     </div>
-
-                    <div style={{ border: '1px solid #007bff', padding: '10px' }}>
-
-                        <h3>Вход</h3>
-
+                    <div style={{ marginBottom: '10px' }}>
                         <input
-                            placeholder="Логин"
-                            value={lUser}
-                            onChange={e => setLUser(e.target.value)}
+                            style={{ width: '100%', padding: '8px' }}
+                            type="password" placeholder="Пароль" value={password}
+                            onChange={e => setPassword(e.target.value)} required
                         />
-
-                        <input
-                            type="password"
-                            placeholder="Пароль"
-                            value={lPass}
-                            onChange={e => setLPass(e.target.value)}
-                        />
-
-                        <button onClick={handleLogin}>Войти</button>
-
                     </div>
-
-                </div>
-
-            ) : (
-
-                <div>
-
-                    <button onClick={handleLogout} style={{ float: 'right' }}>
-                        Выйти
+                    <button style={{
+                        width: '100%', padding: '10px',
+                        backgroundColor: isLogin ? '#007bff' : '#28a745',
+                        color: 'white', border: 'none', borderRadius: '4px', cursor: 'pointer'
+                    }} type="submit">
+                        {isLogin ? 'Войти' : 'Создать аккаунт'}
                     </button>
+                </form>
 
-                    <p>Привет, <b>{activeUser}</b></p>
+                <p style={{ textAlign: 'center', fontSize: '14px' }}>
+                    {isLogin ? 'Нет аккаунта?' : 'Уже есть аккаунт?'}
+                    <button
+                        style={{ background: 'none', border: 'none', color: '#007bff', cursor: 'pointer', textDecoration: 'underline' }}
+                        onClick={() => { setIsLogin(!isLogin); setMessage(''); }}
+                    >
+                        {isLogin ? 'Зарегистрироваться' : 'Войти'}
+                    </button>
+                </p>
 
-                    <form onSubmit={handleSaveNote}>
+                {message && (
+                    <div style={{
+                        marginTop: '10px', padding: '10px', borderRadius: '4px', textAlign: 'center',
+                        backgroundColor: message.includes('Ошибка') ? '#ffebee' : '#e8f5e9',
+                        color: message.includes('Ошибка') ? '#c62828' : '#2e7d32'
+                    }}>
+                        {message}
+                    </div>
+                )}
+            </div>
 
-                        <input
-                            value={content}
-                            onChange={e => setContent(e.target.value)}
-                            placeholder="Заметка..."
-                        />
+            <hr style={{ margin: '30px 0' }} />
 
-                        <button type="submit">ОК</button>
-
-                    </form>
-
-                    <ul>
-                        {notes.map(n =>
-                            <li key={n.id}>{n.content}</li>
-                        )}
-                    </ul>
-
-                </div>
-
-            )}
-
+            <h4>Тестовый список из БД:</h4>
+            <button onClick={fetchUsers}>🔄 Обновить список</button>
+            <ul style={{ paddingLeft: '20px' }}>
+                {users.map(u => (
+                    <li key={u.id} style={{ fontSize: '12px', marginBottom: '5px' }}>
+                        <strong>{u.name || 'Без имени'}</strong> ({u.email})
+                    </li>
+                ))}
+            </ul>
         </div>
     );
 }
