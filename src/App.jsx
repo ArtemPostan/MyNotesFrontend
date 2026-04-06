@@ -1,7 +1,8 @@
+// src/App.jsx
 import { useState, useEffect } from 'react';
 import { authService } from './services/authService';
 import { notesService } from './services/notesService';
-import s from './App.module.css'; // Импортируем стили как объект s
+import s from './App.module.css';
 import NoteItem from './components/NoteItem';
 
 function App() {
@@ -9,6 +10,7 @@ function App() {
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
+    const [userName, setUserName] = useState(''); // Состояние для имени пользователя
     const [message, setMessage] = useState('');
     const [isAuthenticated, setIsAuthenticated] = useState(false);
     const [noteText, setNoteText] = useState('');
@@ -17,8 +19,10 @@ function App() {
 
     useEffect(() => {
         const token = localStorage.getItem('token');
+        const savedName = localStorage.getItem('userName'); // Проверяем имя в памяти
         if (token) {
             setIsAuthenticated(true);
+            setUserName(savedName || 'Пользователь');
             fetchNotes();
         }
     }, []);
@@ -40,7 +44,9 @@ function App() {
             setNoteText('');
             fetchNotes();
         } catch (error) {
-            alert("Не удалось сохранить: " + error);
+            const errorData = error.response?.data;
+            const errorText = typeof errorData === 'string' ? errorData : "Не удалось сохранить";
+            alert("Ошибка: " + errorText);
         } finally {
             setLoadingNotes(false);
         }
@@ -54,6 +60,12 @@ function App() {
                 const res = await authService.login(email, password);
                 if (res.data.token) {
                     localStorage.setItem('token', res.data.token);
+
+                    // Если бэкенд возвращает имя (например, в поле name или user.name)
+                    const displayName = res.data.name || email.split('@')[0];
+                    localStorage.setItem('userName', displayName);
+
+                    setUserName(displayName);
                     setIsAuthenticated(true);
                     setMessage("");
                     fetchNotes();
@@ -64,99 +76,151 @@ function App() {
                 setMessage('Регистрация успешна! Теперь войдите.');
             }
         } catch (err) {
-            setMessage("Ошибка: " + (err.response?.data?.message || "Ошибка сервера"));
+            // --- ВОТ ТУТ ОБРАБОТКА ---
+            const errorData = err.response?.data;
+
+            // Если это строка (наш ResponseStatusException), берем её.
+            // Если это объект (стандартный JSON), берем .message
+            const errorText = typeof errorData === 'string'
+                ? errorData
+                : (errorData?.message || "Ошибка сервера");
+
+            setMessage("Ошибка: " + errorText);
         }
     };
 
     const handleLogout = () => {
         authService.logout();
+        localStorage.removeItem('userName'); // Очищаем имя
         setIsAuthenticated(false);
+        setUserName('');
         setNotesList([]);
     };
 
     const handleDeleteNote = async (id) => {
         if (!window.confirm("Удалить эту заметку?")) return;
-
         try {
             await notesService.delete(id);
-            // Просто фильтруем список в стейте, чтобы не делать лишний запрос fetchNotes()
             setNotesList(notesList.filter(note => note.id !== id));
         } catch (error) {
-            alert("Не удалось удалить: " + error);
+            const errorData = error.response?.data;
+            const msg = typeof errorData === 'string'
+                ? errorData
+                : (errorData?.message || error.message);
+            alert("Ошибка при удалении: " + msg);
         }
     };
 
     return (
         <div className={s.container}>
-            <h1 style={{ textAlign: 'center' }}>MyNotes 📝</h1>
+            <header style={{ padding: '20px 0' }}>
+                <h1 style={{ textAlign: 'center', margin: 0, color: '#fff' }}>MyNotes 📝</h1>
+            </header>
 
             {!isAuthenticated ? (
                 <div className={s.card}>
-                    <h3>{isLogin ? 'Вход' : 'Регистрация'}</h3>
-                    <form onSubmit={handleAuth}>
+                    <h3 style={{ marginTop: 0, textAlign: 'center', color: '#fff' }}>
+                        {isLogin ? 'Вход' : 'Регистрация'}
+                    </h3>
+                    <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {!isLogin && (
-                            <input className={s.input} type="text" placeholder="Ваше имя"
-                                value={name} onChange={e => setName(e.target.value)} required />
+                            <input
+                                className={s.input}
+                                type="text"
+                                placeholder="Ваше имя"
+                                value={name}
+                                onChange={e => setName(e.target.value)}
+                                required
+                            />
                         )}
-                        <input className={s.input} type="email" placeholder="Email"
-                            value={email} onChange={e => setEmail(e.target.value)} required />
-                        <input className={s.input} type="password" placeholder="Пароль"
-                            value={password} onChange={e => setPassword(e.target.value)} required />
+                        <input
+                            className={s.input}
+                            type="email"
+                            placeholder="Email"
+                            value={email}
+                            onChange={e => setEmail(e.target.value)}
+                            required
+                        />
+                        <input
+                            className={s.input}
+                            type="password"
+                            placeholder="Пароль"
+                            value={password}
+                            onChange={e => setPassword(e.target.value)}
+                            required
+                        />
 
-                        {/* Здесь оставляем инлайновый style только для динамического цвета */}
                         <button
                             className={s.button}
-                            style={{ backgroundColor: isLogin ? '#007bff' : '#28a745' }}
+                            style={{ backgroundColor: isLogin ? '#007bff' : '#28a745', marginTop: '10px' }}
                             type="submit"
                         >
                             {isLogin ? 'Войти' : 'Создать аккаунт'}
                         </button>
                     </form>
+
                     <button className={s.linkBtn} onClick={() => { setIsLogin(!isLogin); setMessage(""); }}>
                         {isLogin ? 'Нет аккаунта? Зарегистрироваться' : 'Уже есть аккаунт? Войти'}
                     </button>
+
                     {message && (
                         <div
                             className={s.message}
-                            style={{ backgroundColor: message.includes('Ошибка') ? '#f8d7da' : '#e8f5e9' }}
+                            style={{
+                                backgroundColor: message.includes('Ошибка') ? 'rgba(248, 215, 218, 0.1)' : 'rgba(232, 245, 233, 0.1)',
+                                color: message.includes('Ошибка') ? '#ff4d4f' : '#28a745',
+                                border: `1px solid ${message.includes('Ошибка') ? '#ff4d4f' : '#28a745'}`
+                            }}
                         >
                             {message}
                         </div>
                     )}
                 </div>
             ) : (
-                <div>
-                    <div className={s.header}>
-                        <h3>Мои заметки</h3>
-                        <button onClick={handleLogout} className={s.logoutBtn}>Выйти</button>
-                    </div>
+                <>
+                    <header className={s.stickyHeader}>
+                        <div className={s.header}>
+                            {/* ТЕПЕРЬ ТУТ ИМЯ ПОЛЬЗОВАТЕЛЯ */}
+                            <h3 style={{ margin: 0, color: '#fff' }}>
+                                {userName}
+                            </h3>
+                            <button onClick={handleLogout} className={s.logoutBtn}>Выйти</button>
+                        </div>
 
-                    <div className={s.inputSection}>
-                        <textarea
-                            className={s.textarea}
-                            placeholder="Введите текст..."
-                            value={noteText}
-                            onChange={(e) => setNoteText(e.target.value)}
-                        />
-                        <button
-                            className={s.button}
-                            onClick={handleSaveNote}
-                            disabled={loadingNotes}
-                        >
-                            {loadingNotes ? 'Сохранение...' : 'Сохранить заметку'}
-                        </button>
-                    </div>
+                        <div className={s.inputSection}>
+                            <textarea
+                                className={s.textarea}
+                                placeholder="Ваша заметка..."
+                                value={noteText}
+                                onChange={(e) => setNoteText(e.target.value)}
+                            />
+                            <button
+                                className={s.button}
+                                onClick={handleSaveNote}
+                                disabled={loadingNotes}
+                            >
+                                {loadingNotes ? 'Сохранение...' : 'Сохранить'}
+                            </button>
+                        </div>
+                    </header>
 
-                    <div className={s.listSection}>
+                    <main className={s.listSection}>
                         {notesList.length === 0 ? (
-                            <p style={{ textAlign: 'center', color: '#666' }}>Заметок пока нет.</p>
+                            <div style={{ textAlign: 'center', color: '#666', marginTop: '60px' }}>
+                                <span style={{ fontSize: '40px' }}>Empty</span>
+                                <p>У вас пока нет ни одной заметки</p>
+                            </div>
                         ) : (
-                            notesList.slice().reverse().map(note => (
-                                <NoteItem key={note.id} note={note} onDelete={handleDeleteNote} />
+                            notesList.map(note => (
+                                <NoteItem
+                                    key={note.id}
+                                    note={note}
+                                    onDelete={handleDeleteNote}
+                                />
                             ))
                         )}
-                    </div>
-                </div>
+                    </main>
+                </>
             )}
         </div>
     );

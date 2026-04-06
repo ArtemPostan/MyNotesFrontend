@@ -1,19 +1,28 @@
 import s from '../App.module.css';
 
 function NoteItem({ note, onDelete }) {
+    const formattedDate = new Date(note.createdAt).toLocaleString('ru-RU', {
+        day: '2-digit',
+        month: '2-digit',
+        year: 'numeric',
+        hour: '2-digit',
+        minute: '2-digit'
+    });
+
     return (
         <div className={s.noteItem}>
-            <p style={{ margin: '0 0 10px 0', paddingRight: '30px' }}>{note.content}</p>
-            <small style={{ color: '#888' }}>
-                {new Date(note.createdAt).toLocaleString('ru-RU')}
-            </small>
-            <button
-                className={s.deleteBtn}
-                onClick={() => onDelete(note.id)}
-                title="Удалить"
-            >
-                ✕
-            </button>
+            <p className={s.noteContent}>{note.content}</p>
+            
+            <div className={s.noteFooter}>
+                <span className={s.noteDate}>{formattedDate}</span>
+                <button 
+                    className={s.deleteBtn} 
+                    onClick={() => onDelete(note.id)}
+                    title="Удалить"
+                >
+                    ✕
+                </button>
+            </div>
         </div>
     );
 }
