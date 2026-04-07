@@ -105,8 +105,8 @@
     color: #ff4d4f;
     border: 1px solid #ff4d4f;
     border-radius: 6px;
-    width: 28px;
-    height: 28px;
+    width: 20px;
+    height: 20px;
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -149,4 +149,24 @@
     margin-top: 20px;
     width: 100%;
     font-size: 14px;
+}
+
+.inlineTextarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    color: #ffffff; 
+    font-family: inherit;
+    font-size: 1rem;
+    padding: 0;
+    margin-bottom: 10px;
+    display: block;
+    overflow: hidden;
+}
+
+.inlineTextarea:focus {
+    color: #007bff;
+    transition: color 0.2s;
 }

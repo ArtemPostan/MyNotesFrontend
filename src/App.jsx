@@ -111,6 +111,16 @@ function App() {
         }
     };
 
+    const handleUpdateNote = async (id, newContent) => {
+        try {
+            await notesService.update(id, newContent);
+            // Обновляем только локальный стейт, чтобы не перезагружать весь список
+            setNotesList(prev => prev.map(n => n.id === id ? { ...n, content: newContent } : n));
+        } catch (error) {
+            console.error("Ошибка автосохранения:", error);
+        }
+    };
+
     return (
         <div className={s.container}>
             <header style={{ padding: '20px 0' }}>
@@ -216,6 +226,7 @@ function App() {
                                     key={note.id}
                                     note={note}
                                     onDelete={handleDeleteNote}
+                                    onUpdate={handleUpdateNote}
                                 />
                             ))
                         )}
