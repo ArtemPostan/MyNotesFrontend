@@ -63,6 +63,12 @@
 }
 
 .button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 100px;
+    height: 40px;
+    position: relative;
     width: 100%;
     padding: 14px;
     color: white;
@@ -72,6 +78,25 @@
     cursor: pointer;
     font-weight: 600;
     font-size: 16px;
+}
+
+.btnLoader {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff; /* Белый цвет для контраста с синей кнопкой */
+    border-radius: 50%;
+    animation: btnSpin 0.8s linear infinite;
+}
+
+@keyframes btnSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Визуальное состояние заблокированной кнопки */
+.button:disabled {
+    opacity: 0.7;
+    cursor: not-allowed;
 }
 
 .button:hover {
@@ -169,4 +194,91 @@
 .inlineTextarea:focus {
     color: #007bff;
     transition: color 0.2s;
+}
+
+.connectingOverlay {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    background-color: #1a1a1a;
+    color: white;
+    text-align: center;
+}
+
+.serverStatus {
+    position: fixed;
+    bottom: 10px;
+    right: 10px;
+    font-size: 12px;
+    color: #aaa;
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    background: rgba(0,0,0,0.5);
+    padding: 5px 10px;
+    border-radius: 20px;
+}
+
+.online {
+    width: 8px;
+    height: 8px;
+    background-color: #28a745;
+    border-radius: 50%;
+    box-shadow: 0 0 5px #28a745;
+}
+
+.offline {
+    width: 8px;
+    height: 8px;
+    background-color: #ff4d4f;
+    border-radius: 50%;
+}
+
+.globalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.7); /* Темный фон с прозрачностью */
+    backdrop-filter: blur(4px);    /* Размытие заднего фона для красоты */
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    z-index: 9999;                 /* Поверх всего */
+    color: white;
+}
+
+.statusText {
+    text-align: center;
+    margin-top: 20px;
+}
+
+.noteFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
+/* Стили для маленького индикатора */
+.miniLoader {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #007bff; /* Цвет "крутилки" */
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+.deleteBtn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
 }
