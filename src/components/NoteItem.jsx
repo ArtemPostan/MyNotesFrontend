@@ -1,13 +1,33 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import s from '../App.module.css';
 import debounce from 'lodash.debounce';
+import { useSortable } from '@dnd-kit/sortable';
+import { CSS } from '@dnd-kit/utilities';
 
 function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
     const [text, setText] = useState(note.content);
     const [prevContent, setPrevContent] = useState(note.content);
     const textareaRef = useRef(null);
 
-    // 1. Синхронизируем стейт текста БЕЗ обращения к рефам
+    // Подключаем функционал сортировки dnd-kit
+    const {
+        attributes,
+        listeners,
+        setNodeRef,
+        transform,
+        transition,
+        isDragging
+    } = useSortable({ id: note.id });
+
+    // Стили для плавного перемещения
+    const style = {
+        transform: CSS.Transform.toString(transform),
+        transition,
+        zIndex: isDragging ? 100 : 1,
+        opacity: isDragging ? 0.6 : 1,
+    };
+
+    // Синхронизируем стейт текста при обновлении пропсов
     if (note.content !== prevContent) {
         setPrevContent(note.content);
         if (!isUpdating) {
@@ -23,12 +43,9 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
         }
     };
 
-    // 2. Используем useEffect ТОЛЬКО для подстройки высоты
-    // Это не вызовет ошибку "cascading renders", так как мы не меняем стейт, 
-    // а только манипулируем DOM (стилями) после того, как React закончил отрисовку.
     useEffect(() => {
         autoResize();
-    }, [text]); // Каждый раз, когда текст меняется (включая ввод и загрузку с сервера)
+    }, [text]);
 
     const debouncedSave = useMemo(
         () => debounce((id, newText) => {
@@ -39,11 +56,11 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
 
     const handleChange = (e) => {
         const newText = e.target.value;
-        setText(newText); 
-        // Здесь autoResize сработает через useEffect выше
-        debouncedSave(note.id, newText); 
+        setText(newText);
+        debouncedSave(note.id, newText);
     };
 
+    // Логика форматирования даты
     const isEdited = note.updatedAt && note.updatedAt !== note.createdAt;
     const displayDate = isEdited ? note.updatedAt : note.createdAt;
     const label = isEdited ? "Обновлено " : "";
@@ -65,7 +82,22 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
     const formattedDate = formatDate(displayDate);
 
     return (
-        <div className={s.noteItem}>
+        <div 
+            ref={setNodeRef} // Реф для библиотеки DnD
+            style={style} 
+            className={s.noteItem}
+        >
+            {/* 1. Область для перетаскивания (Handle) */}
+            <div 
+                className={s.dragHandle} 
+                {...attributes} 
+                {...listeners}
+                title="Зажмите, чтобы переместить"
+            >
+                <span className={s.dragIcon}>⠿</span>
+            </div>
+
+            {/* 2. Поле контента */}
             <textarea
                 ref={textareaRef}
                 className={s.inlineTextarea}
@@ -75,6 +107,7 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
                 rows="1"
             />
 
+            {/* 3. Футер заметки */}
             <div className={s.noteFooter}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
                     <span className={s.noteDate}>

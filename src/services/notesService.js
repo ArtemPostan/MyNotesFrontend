@@ -53,5 +53,10 @@ export const notesService = {
             response.data.content = decrypt(response.data.content);
         }
         return response;
+    },
+
+    reorder: async (noteIds) => {
+        // Отправляем массив строк (ID) в правильном порядке
+        return await api.patch('/api/notes/reorder', noteIds);
     }
 };

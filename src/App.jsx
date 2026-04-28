@@ -4,6 +4,8 @@ import { notesService } from './services/notesService';
 import s from './App.module.css';
 import NoteItem from './components/NoteItem';
 import { storageService } from './services/storageService';
+import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
+import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 function App() {
     // --- СОСТОЯНИЯ ЗАГРУЗКИ ---
@@ -145,6 +147,33 @@ function App() {
         setNotesList([]);
     };
 
+    const sensors = useSensors(
+        useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
+    );
+
+    const handleDragEnd = async (event) => {
+        const { active, over } = event;
+
+        if (active.id !== over.id) {
+            const oldIndex = notesList.findIndex((n) => n.id === active.id);
+            const newIndex = notesList.findIndex((n) => n.id === over.id);
+
+            const newList = arrayMove(notesList, oldIndex, newIndex);
+
+            // 1. Сначала обновляем UI (оптимистично)
+            setNotesList(newList);
+            storageService.saveNotes(newList);
+
+            // 2. Отправляем на бэкенд
+            try {
+                await notesService.reorder(newList.map(n => n.id));
+            } catch (error) {
+                console.error("Не удалось сохранить порядок на сервере", error);
+                // Тут можно вернуть старый список, если критично
+            }
+        }
+    };
+
     // --- РЕНДЕР ---
 
     if (isConnecting && notesList.length === 0 && isAuthenticated) {
@@ -227,15 +256,31 @@ function App() {
                                 <p>Заметок нет</p>
                             </div>
                         ) : (
-                            notesList.map(note => (
-                                <NoteItem
-                                    key={note.id}
-                                    note={note}
-                                    onDelete={handleDeleteNote}
-                                    onUpdate={handleUpdateNote}
-                                    isUpdating={processingId === note.id} // Пробрасываем статус в заметку
-                                />
-                            ))
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext
+                                    items={notesList.map(n => n.id)}
+                                    strategy={verticalListSortingStrategy}
+                                >
+                                    {/* Убираем лишний <main> здесь, 
+                   так как он уже есть снаружи. 
+                */}
+                                    <div className={s.dragListWrapper}>
+                                        {notesList.map(note => (
+                                            <NoteItem
+                                                key={note.id}
+                                                note={note}
+                                                onDelete={handleDeleteNote}
+                                                onUpdate={handleUpdateNote}
+                                                isUpdating={processingId === note.id}
+                                            />
+                                        ))}
+                                    </div>
+                                </SortableContext>
+                            </DndContext>
                         )}
                     </main>
                 </>
