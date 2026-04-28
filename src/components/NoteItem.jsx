@@ -67,30 +67,44 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
 
     const formatDate = (dateValue) => {
         if (!dateValue) return "";
-        if (Array.isArray(dateValue)) {
-            const [year, month, day, hour, minute] = dateValue;
-            return new Date(year, month - 1, day, hour, minute).toLocaleString('ru-RU', {
-                day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-            });
-        }
+
+        // Просто создаем объект даты. 
+        // Если в строке есть 'Z' или '+00:00', браузер сам сконвертирует время в местное.
         const date = new Date(dateValue);
-        return isNaN(date.getTime()) ? "Дата не указана" : date.toLocaleString('ru-RU', {
-            day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+
+        if (isNaN(date.getTime())) {
+            // Если пришел массив (на случай, если аннотация не сработала)
+            if (Array.isArray(dateValue)) {
+                const [year, month, day, hour, minute, second = 0] = dateValue;
+                return new Date(Date.UTC(year, month - 1, day, hour, minute, second))
+                    .toLocaleString('ru-RU', {
+                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
+                    });
+            }
+            return "Дата не указана";
+        }
+
+        return date.toLocaleString('ru-RU', {
+            day: '2-digit',
+            month: '2-digit',
+            year: 'numeric',
+            hour: '2-digit',
+            minute: '2-digit'
         });
     };
 
     const formattedDate = formatDate(displayDate);
 
     return (
-        <div 
+        <div
             ref={setNodeRef} // Реф для библиотеки DnD
-            style={style} 
+            style={style}
             className={s.noteItem}
         >
             {/* 1. Область для перетаскивания (Handle) */}
-            <div 
-                className={s.dragHandle} 
-                {...attributes} 
+            <div
+                className={s.dragHandle}
+                {...attributes}
                 {...listeners}
                 title="Зажмите, чтобы переместить"
             >
@@ -116,8 +130,8 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
                     {isUpdating && <div className={s.miniLoader}></div>}
                 </div>
 
-                <button 
-                    className={s.deleteBtn} 
+                <button
+                    className={s.deleteBtn}
                     onClick={() => onDelete(note.id)}
                     disabled={isUpdating}
                 >
