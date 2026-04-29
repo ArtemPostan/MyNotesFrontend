@@ -1,34 +1,42 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { authService } from './services/authService';
 import { notesService } from './services/notesService';
-import s from './App.module.css';
-import NoteItem from './components/NoteItem';
 import { storageService } from './services/storageService';
+import s from './App.module.css';
+
+// Компоненты
+import NoteItem from './components/NoteItem';
+
+// DnD Kit
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 function App() {
-    // --- СОСТОЯНИЯ ЗАГРУЗКИ ---
-    // processingId будет хранить ID заметки, которая сейчас сохраняется
-    const [processingId, setProcessingId] = useState(null);
-    // isAuthLoading для блокировки экрана только при входе/регистрации
-    const [isAuthLoading, setIsAuthLoading] = useState(false);
-    const [isServerAwake, setIsServerAwake] = useState(false);
-
-    const cachedNotes = storageService.getNotes() || [];
-    const [notesList, setNotesList] = useState(cachedNotes);
-    const [isConnecting, setIsConnecting] = useState(cachedNotes.length === 0);
-
-    // --- СОСТОЯНИЯ ПОЛЬЗОВАТЕЛЯ ---
+    // --- СОСТОЯНИЯ АВТОРИЗАЦИИ ---
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
     const [isLogin, setIsLogin] = useState(true);
+    const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
+    const [isGuest, setIsGuest] = useState(localStorage.getItem('isGuest') === 'true');
+
+    // Данные полей
     const [email, setEmail] = useState('');
     const [password, setPassword] = useState('');
     const [name, setName] = useState('');
-    const [userName, setUserName] = useState(localStorage.getItem('userName') || '');
+    
+    // Системные состояния
+    const [processingId, setProcessingId] = useState(null);
+    const [isAuthLoading, setIsAuthLoading] = useState(false);
+    const [isServerAwake, setIsServerAwake] = useState(false);
     const [message, setMessage] = useState('');
+
+    // Данные заметок
+    const cachedNotes = storageService.getNotes() || [];
+    const [notesList, setNotesList] = useState(cachedNotes);
+    const [isConnecting, setIsConnecting] = useState(cachedNotes.length === 0);
+    const [userName, setUserName] = useState(localStorage.getItem('userName') || '');
     const [noteText, setNoteText] = useState('');
 
+    // --- СИНХРОНИЗАЦИЯ ЗАМЕТОК ---
     const fetchNotes = async () => {
         try {
             const response = await notesService.getAll();
@@ -36,7 +44,6 @@ function App() {
             storageService.saveNotes(response.data);
             setIsServerAwake(true);
         } catch (error) {
-            console.error("Ошибка синхронизации:", error);
             if (error.response) setIsServerAwake(true);
         } finally {
             setIsConnecting(false);
@@ -44,95 +51,57 @@ function App() {
     };
 
     useEffect(() => {
-        if (isAuthenticated) {
-            fetchNotes();
-        } else {
-            setIsConnecting(false);
-        }
+        if (isAuthenticated) fetchNotes();
     }, [isAuthenticated]);
 
-    // Универсальная обертка для операций с конкретной заметкой
-    const noteRequestWrapper = async (id, callback) => {
-        setProcessingId(id); // Включаем "крутилку" для конкретной заметки
-        try {
-            await callback();
-        } catch (error) {
-            console.error("Ошибка операции с заметкой:", error);
-        } finally {
-            setProcessingId(null); // Выключаем
-        }
-    };
-
-    // --- ОБРАБОТЧИКИ ---
-
-    const handleSaveNote = async () => {
-        if (!noteText.trim()) return;
-        // Для создания новой заметки используем спец. ID 'new'
-        await noteRequestWrapper('new', async () => {
-            try {
-                await notesService.create(noteText);
-                setNoteText('');
-                await fetchNotes();
-            } catch (error) {
-                alert("Ошибка сохранения: " + (error.response?.data || "Ошибка"));
-            }
-        });
-    };
-
-    const handleUpdateNote = async (id, newContent) => {
-        await noteRequestWrapper(id, async () => {
-            try {
-                const response = await notesService.update(id, newContent);
-                const updatedNote = response.data;
-                if (updatedNote?.id) {
-                    setNotesList(prev => {
-                        const newList = prev.map(n => n.id === id ? updatedNote : n);
-                        storageService.saveNotes(newList);
-                        return newList;
-                    });
-                }
-            } catch (error) {
-                console.error("Ошибка обновления:", error);
-            }
-        });
-    };
-
-    const handleDeleteNote = async (id) => {
-        if (!window.confirm("Удалить заметку?")) return;
-        await noteRequestWrapper(id, async () => {
-            try {
-                await notesService.delete(id);
-                const newList = notesList.filter(n => n.id !== id);
-                setNotesList(newList);
-                storageService.saveNotes(newList);
-            } catch {
-                alert("Ошибка удаления");
-            }
-        });
-    };
+    // --- ОБРАБОТЧИКИ АВТОРИЗАЦИИ ---
 
     const handleAuth = async (e) => {
         e.preventDefault();
         setIsAuthLoading(true);
+        setMessage("");
+
         try {
-            setMessage("Загрузка...");
+            let res;
             if (isLogin) {
-                const res = await authService.login(email, password);
-                if (res.data.token) {
-                    localStorage.setItem('token', res.data.token);
-                    const displayName = res.data.name || email.split('@')[0];
-                    localStorage.setItem('userName', displayName);
-                    setUserName(displayName);
-                    setIsAuthenticated(true);
-                    setMessage("");
-                }
+                res = await authService.login(email, password);
             } else {
-                await authService.register({ email, password, name });
-                setIsLogin(true);
-                setMessage('Успешно! Войдите.');
+                res = await authService.register({ name, email, password });
+            }
+
+            const { token, name: uName, isEmailVerified } = res.data;
+
+            // 1. Сохраняем данные СРАЗУ, чтобы работал notesService
+            localStorage.setItem('token', token);
+            localStorage.setItem('userName', uName || email.split('@')[0]);
+            setUserName(uName || email.split('@')[0]);
+            
+            // 2. Активируем статус авторизации, чтобы fetchNotes и другие функции начали работать
+            setIsAuthenticated(true);
+
+            if (!isEmailVerified) {
+                setShowVerifyPrompt(true);
+                setIsGuest(true);
+                localStorage.setItem('isGuest', 'true');
+            } else {
+                setIsGuest(false);
+                localStorage.setItem('isGuest', 'false');
+                setShowVerifyPrompt(false);
             }
         } catch (err) {
-            setMessage("Ошибка: " + (err.response?.data?.message || err.response?.data || "Ошибка сервера"));
+            setMessage(err.response?.data?.message || "Ошибка авторизации");
+        } finally {
+            setIsAuthLoading(false);
+        }
+    };
+
+    const handleBindEmail = async () => {
+        try {
+            setIsAuthLoading(true);
+            await authService.sendVerificationCode(email);
+            setMessage("Код отправлен! Проверьте почту.");
+        } catch {
+            setMessage("Не удалось отправить код.");
         } finally {
             setIsAuthLoading(false);
         }
@@ -140,36 +109,71 @@ function App() {
 
     const handleLogout = () => {
         authService.logout();
-        localStorage.removeItem('userName');
-        storageService.clear();
+        localStorage.clear();
         setIsAuthenticated(false);
+        setIsGuest(false);
         setUserName('');
         setNotesList([]);
+        setShowVerifyPrompt(false);
+        setMessage("");
     };
 
-    const sensors = useSensors(
-        useSensor(PointerSensor, { activationConstraint: { distance: 8 } })
-    );
+    // --- ОБРАБОТЧИКИ ЗАМЕТОК ---
 
+    const handleSaveNote = async () => {
+        if (!noteText.trim()) return;
+        setProcessingId('new');
+        try {
+            await notesService.create(noteText);
+            setNoteText('');
+            await fetchNotes();
+        } catch {
+            setMessage("Ошибка при сохранении заметки");
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleUpdateNote = async (id, newText) => {
+        setProcessingId(id);
+        try {
+            await notesService.update(id, newText);
+            await fetchNotes();
+        } catch (error) {
+            console.error(error);
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    const handleDeleteNote = async (id) => {
+        if (!window.confirm("Удалить заметку?")) return;
+        setProcessingId(id);
+        try {
+            await notesService.delete(id);
+            await fetchNotes();
+        } finally {
+            setProcessingId(null);
+        }
+    };
+
+    // --- DRAG & DROP ---
+    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+    
     const handleDragEnd = async (event) => {
         const { active, over } = event;
-
-        if (active.id !== over.id) {
+        if (active && over && active.id !== over.id) {
             const oldIndex = notesList.findIndex((n) => n.id === active.id);
             const newIndex = notesList.findIndex((n) => n.id === over.id);
-
             const newList = arrayMove(notesList, oldIndex, newIndex);
-
-            // 1. Сначала обновляем UI (оптимистично)
+            
             setNotesList(newList);
             storageService.saveNotes(newList);
 
-            // 2. Отправляем на бэкенд
             try {
                 await notesService.reorder(newList.map(n => n.id));
-            } catch (error) {
-                console.error("Не удалось сохранить порядок на сервере", error);
-                // Тут можно вернуть старый список, если критично
+            } catch {
+                console.error("Ошибка сохранения порядка");
             }
         }
     };
@@ -181,7 +185,6 @@ function App() {
             <div className={s.connectingOverlay}>
                 <div className={s.loader}></div>
                 <h2>Синхронизация...</h2>
-                <p>Просыпаемся (Serverless Cold Start)</p>
             </div>
         );
     }
@@ -199,9 +202,7 @@ function App() {
 
             {!isAuthenticated ? (
                 <div className={s.card}>
-                    {/* Плашка только для экрана логина */}
                     {isAuthLoading && <div className={s.loader} style={{ margin: '0 auto 10px' }}></div>}
-
                     <h3 style={{ textAlign: 'center', color: '#fff' }}>{isLogin ? 'Вход' : 'Регистрация'}</h3>
                     <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
                         {!isLogin && (
@@ -209,6 +210,9 @@ function App() {
                         )}
                         <input className={s.input} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
                         <input className={s.input} type="password" placeholder="Пароль" value={password} onChange={e => setPassword(e.target.value)} required />
+                        
+                        {isLogin && <button type="button" className={s.linkBtn} style={{alignSelf: 'flex-end', fontSize: '12px'}}>Забыли пароль?</button>}
+
                         <button className={s.button} type="submit" disabled={isAuthLoading}>
                             {isLogin ? 'Войти' : 'Создать аккаунт'}
                         </button>
@@ -220,61 +224,49 @@ function App() {
                 </div>
             ) : (
                 <>
+                    {/* ОКНО ПРЕДЛОЖЕНИЯ ПОДТВЕРЖДЕНИЯ (Отображается поверх основного контента) */}
+                    {showVerifyPrompt && (
+                        <div className={s.card} style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000, boxShadow: '0 0 100px rgba(0,0,0,0.8)'}}>
+                            <h3 style={{ color: '#fff' }}>Почта не подтверждена</h3>
+                            <p style={{ color: '#ccc', fontSize: '14px' }}>Подтвердите Email, чтобы заметки не потерялись.</p>
+                            <button className={s.button} onClick={handleBindEmail} disabled={isAuthLoading}>
+                                {isAuthLoading ? 'Отправка...' : 'Привязать почту'}
+                            </button>
+                            <button className={s.linkBtn} onClick={() => setShowVerifyPrompt(false)} style={{ marginTop: '10px' }}>
+                                Продолжить как гость
+                            </button>
+                            {message && <div className={s.message}>{message}</div>}
+                        </div>
+                    )}
+
                     <header className={s.stickyHeader}>
                         <div className={s.header}>
-                            <h3 style={{ margin: 0, color: '#fff' }}>{userName}</h3>
+                            <h3 style={{ margin: 0, color: '#fff' }}>
+                                {userName} {isGuest && <small style={{opacity: 0.5}}>(Гость)</small>}
+                            </h3>
                             <button onClick={handleLogout} className={s.logoutBtn}>Выйти</button>
                         </div>
                         <div className={s.inputSection}>
-                            <div className={s.textareaWrapper}>
-                                <textarea
-                                    className={s.textarea}
-                                    placeholder="Ваша заметка..."
-                                    value={noteText}
-                                    onChange={e => setNoteText(e.target.value)}
-                                />
-                            </div>
-
-                            <button
-                                className={s.button}
-                                onClick={handleSaveNote}
-                                disabled={processingId === 'new' || !noteText.trim()}
-                            >
-                                {/* Если идет сохранение, показываем лоадер, если нет — текст */}
-                                {processingId === 'new' ? (
-                                    <div className={s.btnLoader}></div>
-                                ) : (
-                                    'Сохранить'
-                                )}
+                            <textarea className={s.textarea} placeholder="Ваша заметка..." value={noteText} onChange={e => setNoteText(e.target.value)} />
+                            <button className={s.button} onClick={handleSaveNote} disabled={processingId === 'new' || !noteText.trim()}>
+                                {processingId === 'new' ? <div className={s.btnLoader}></div> : 'Сохранить'}
                             </button>
                         </div>
                     </header>
 
                     <main className={s.listSection}>
                         {notesList.length === 0 ? (
-                            <div style={{ textAlign: 'center', color: '#666', marginTop: '60px' }}>
-                                <p>Заметок нет</p>
-                            </div>
+                            <div style={{ textAlign: 'center', color: '#666', marginTop: '60px' }}><p>Заметок нет</p></div>
                         ) : (
-                            <DndContext
-                                sensors={sensors}
-                                collisionDetection={closestCenter}
-                                onDragEnd={handleDragEnd}
-                            >
-                                <SortableContext
-                                    items={notesList.map(n => n.id)}
-                                    strategy={verticalListSortingStrategy}
-                                >
-                                    {/* Убираем лишний <main> здесь, 
-                   так как он уже есть снаружи. 
-                */}
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                                <SortableContext items={notesList.map(n => n.id)} strategy={verticalListSortingStrategy}>
                                     <div className={s.dragListWrapper}>
                                         {notesList.map(note => (
-                                            <NoteItem
-                                                key={note.id}
-                                                note={note}
-                                                onDelete={handleDeleteNote}
-                                                onUpdate={handleUpdateNote}
+                                            <NoteItem 
+                                                key={note.id} 
+                                                note={note} 
+                                                onDelete={handleDeleteNote} 
+                                                onUpdate={handleUpdateNote} 
                                                 isUpdating={processingId === note.id}
                                             />
                                         ))}

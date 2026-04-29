@@ -1,0 +1,60 @@
+
+.authContainer {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+    max-width: 300px;
+    margin: 50px auto;
+    padding: 20px;
+    background: #2a2a2a;
+    border-radius: 12px;
+    color: white;
+}
+
+.authContainer input {
+    padding: 10px;
+    border-radius: 6px;
+    border: 1px solid #444;
+    background: #1a1a1a;
+    color: white;
+}
+
+.codeInput {
+    font-size: 24px;
+    text-align: center;
+    letter-spacing: 5px;
+}
+
+.mainBtn {
+    padding: 12px;
+    background: #4a90e2;
+    border: none;
+    border-radius: 6px;
+    color: white;
+    cursor: pointer;
+}
+
+.secondaryBtn {
+    padding: 10px;
+    background: transparent;
+    border: 1px solid #666;
+    color: #ccc;
+    cursor: pointer;
+}
+
+.backLink {
+    background: none;
+    border: none;
+    color: #888;
+    cursor: pointer;
+    text-align: left;
+    padding: 0;
+}
+
+.message {
+    font-size: 14px;
+    background: rgba(255, 107, 107, 0.1);
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid rgba(255, 107, 107, 0.3);
+}

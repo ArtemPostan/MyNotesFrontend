@@ -1,31 +1,58 @@
-import s from '../App.module.css';
+import React, { useState } from 'react';
+import s from './Auth.module.css';
 
-function AuthForm({ 
-    isLogin, setIsLogin, 
-    email, setEmail, 
-    password, setPassword, 
-    name, setName, 
-    handleAuth, message, isAuthLoading 
-}) {
+function AuthForm({ onLogin, onCancel, onForgot, isLoading }) {
+    const [email, setEmail] = useState('');
+    const [password, setPassword] = useState('');
+    const [code, setCode] = useState('');
+    const [isCodeSent, setIsCodeSent] = useState(false); // Состояние шага
+
+    const handleSubmit = async (e) => {
+        e.preventDefault();
+        // Передаем email, пароль и код (если он уже есть) в App.jsx
+        const shouldShowCodeField = await onLogin(email, password, isCodeSent ? code : null);
+        
+        // Если App.jsx вернул true, значит код отправлен — показываем поле ввода
+        if (shouldShowCodeField && !isCodeSent) {
+            setIsCodeSent(true);
+        }
+    };
+
     return (
-        <div className={s.card}>
-            {isAuthLoading && <div className={s.loader} style={{ margin: '0 auto 10px' }}></div>}
-            <h3 style={{ textAlign: 'center', color: '#fff' }}>{isLogin ? 'Вход' : 'Регистрация'}</h3>
-            <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                {!isLogin && (
-                    <input className={s.input} type="text" placeholder="Имя" value={name} onChange={e => setName(e.target.value)} required />
-                )}
-                <input className={s.input} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
-                <input className={s.input} type="password" placeholder="Пароль" value={password} onChange={e => setPassword(e.target.value)} required />
-                <button className={s.button} type="submit" disabled={isAuthLoading}>
-                    {isLogin ? 'Войти' : 'Создать аккаунт'}
-                </button>
-            </form>
-            <button className={s.linkBtn} onClick={() => { setIsLogin(!isLogin); }}>
-                {isLogin ? 'Нет аккаунта? Регистрация' : 'Есть аккаунт? Войти'}
-            </button>
-            {message && <div className={s.message}>{message}</div>}
-        </div>
+        <form className={s.authContainer} onSubmit={handleSubmit}>
+            <button type="button" className={s.backLink} onClick={onCancel}>← Назад</button>
+            
+            {!isCodeSent ? (
+                <>
+                    <h2>Вход</h2>
+                    <input 
+                        type="email" placeholder="Email" required
+                        value={email} onChange={(e) => setEmail(e.target.value)} 
+                    />
+                    <input 
+                        type="password" placeholder="Пароль" required
+                        value={password} onChange={(e) => setPassword(e.target.value)} 
+                    />
+                    <button type="button" className={s.linkBtn} onClick={onForgot}>Забыли пароль?</button>
+                    <button className={s.mainBtn} disabled={isLoading}>
+                        {isLoading ? 'Загрузка...' : 'Продолжить'}
+                    </button>
+                </>
+            ) : (
+                <>
+                    <h2>Подтверждение</h2>
+                    <p>Код отправлен на {email}</p>
+                    <input 
+                        className={s.codeInput}
+                        type="text" maxLength="5" placeholder="00000" required
+                        value={code} onChange={(e) => setCode(e.target.value)}
+                    />
+                    <button className={s.mainBtn} disabled={isLoading}>
+                        {isLoading ? 'Проверка...' : 'Войти'}
+                    </button>
+                </>
+            )}
+        </form>
     );
 }
 
