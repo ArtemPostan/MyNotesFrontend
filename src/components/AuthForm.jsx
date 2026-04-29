@@ -1,59 +1,78 @@
-import React, { useState } from 'react';
-import s from './Auth.module.css';
+import React from 'react';
+import s from '../App.module.css';
 
-function AuthForm({ onLogin, onCancel, onForgot, isLoading }) {
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [code, setCode] = useState('');
-    const [isCodeSent, setIsCodeSent] = useState(false); // Состояние шага
-
-    const handleSubmit = async (e) => {
-        e.preventDefault();
-        // Передаем email, пароль и код (если он уже есть) в App.jsx
-        const shouldShowCodeField = await onLogin(email, password, isCodeSent ? code : null);
-        
-        // Если App.jsx вернул true, значит код отправлен — показываем поле ввода
-        if (shouldShowCodeField && !isCodeSent) {
-            setIsCodeSent(true);
-        }
+const AuthForm = ({ 
+    isLogin, 
+    setIsLogin, 
+    isAuthLoading, 
+    message, 
+    setMessage,
+    handleAuth,
+    formData, // Объект со всеми полями
+    setFormData 
+}) => {
+    
+    const handleChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
     };
 
     return (
-        <form className={s.authContainer} onSubmit={handleSubmit}>
-            <button type="button" className={s.backLink} onClick={onCancel}>← Назад</button>
+        <div className={s.card}>
+            {isAuthLoading && <div className={s.loader} style={{ margin: '0 auto 10px' }}></div>}
+            <h3 style={{ textAlign: 'center', color: '#fff' }}>
+                {isLogin ? 'Вход' : 'Регистрация'}
+            </h3>
             
-            {!isCodeSent ? (
-                <>
-                    <h2>Вход</h2>
+            <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                {!isLogin && (
                     <input 
-                        type="email" placeholder="Email" required
-                        value={email} onChange={(e) => setEmail(e.target.value)} 
+                        className={s.input} 
+                        type="text" 
+                        name="name"
+                        placeholder="Имя" 
+                        value={formData.name} 
+                        onChange={handleChange} 
+                        required 
                     />
-                    <input 
-                        type="password" placeholder="Пароль" required
-                        value={password} onChange={(e) => setPassword(e.target.value)} 
-                    />
-                    <button type="button" className={s.linkBtn} onClick={onForgot}>Забыли пароль?</button>
-                    <button className={s.mainBtn} disabled={isLoading}>
-                        {isLoading ? 'Загрузка...' : 'Продолжить'}
+                )}
+                <input 
+                    className={s.input} 
+                    type="email" 
+                    name="email"
+                    placeholder="Email" 
+                    value={formData.email} 
+                    onChange={handleChange} 
+                    required 
+                />
+                <input 
+                    className={s.input} 
+                    type="password" 
+                    name="password"
+                    placeholder="Пароль" 
+                    value={formData.password} 
+                    onChange={handleChange} 
+                    required 
+                />
+
+                {isLogin && (
+                    <button type="button" className={s.linkBtn} style={{ alignSelf: 'flex-end', fontSize: '12px' }}>
+                        Забыли пароль?
                     </button>
-                </>
-            ) : (
-                <>
-                    <h2>Подтверждение</h2>
-                    <p>Код отправлен на {email}</p>
-                    <input 
-                        className={s.codeInput}
-                        type="text" maxLength="5" placeholder="00000" required
-                        value={code} onChange={(e) => setCode(e.target.value)}
-                    />
-                    <button className={s.mainBtn} disabled={isLoading}>
-                        {isLoading ? 'Проверка...' : 'Войти'}
-                    </button>
-                </>
-            )}
-        </form>
+                )}
+
+                <button className={s.button} type="submit" disabled={isAuthLoading}>
+                    {isLogin ? 'Войти' : 'Создать аккаунт'}
+                </button>
+            </form>
+
+            <button className={s.linkBtn} onClick={() => { setIsLogin(!isLogin); setMessage(""); }}>
+                {isLogin ? 'Нет аккаунта? Регистрация' : 'Есть аккаунт? Войти'}
+            </button>
+            
+            {message && <div className={s.message}>{message}</div>}
+        </div>
     );
-}
+};
 
 export default AuthForm;

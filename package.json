@@ -6,6 +6,7 @@
   "scripts": {
     "dev": "vite",
     "build": "vite build",
+    "deploy": "npm run build && yc storage s3 cp --recursive ./dist s3://mynotesfrontend/ && yc storage s3 cp --recursive ./dist/assets s3://mynotesfrontend/assets/",
     "lint": "eslint .",
     "preview": "vite preview"
   },

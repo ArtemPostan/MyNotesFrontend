@@ -6,6 +6,8 @@ import s from './App.module.css';
 
 // Компоненты
 import NoteItem from './components/NoteItem';
+import VerifyEmailModal from './components/VerifyEmailModal';
+import AuthForm from './components/AuthForm';
 
 // DnD Kit
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
@@ -15,19 +17,23 @@ function App() {
     // --- СОСТОЯНИЯ АВТОРИЗАЦИИ ---
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
     const [isLogin, setIsLogin] = useState(true);
-    const [showVerifyPrompt, setShowVerifyPrompt] = useState(false);
     const [isGuest, setIsGuest] = useState(localStorage.getItem('isGuest') === 'true');
+    const [showVerifyPrompt, setShowVerifyPrompt] = useState(
+        !!localStorage.getItem('token') && localStorage.getItem('isEmailVerified') === 'false'
+    );
 
-    // Данные полей
-    const [email, setEmail] = useState('');
-    const [password, setPassword] = useState('');
-    const [name, setName] = useState('');
-    
+    // Данные полей (Объединенные в один объект)
+    const [formData, setFormData] = useState({
+        name: '',
+        email: '',
+        password: ''
+    });
+
     // Системные состояния
-    const [processingId, setProcessingId] = useState(null);
-    const [isAuthLoading, setIsAuthLoading] = useState(false);
-    const [isServerAwake, setIsServerAwake] = useState(false);
     const [message, setMessage] = useState('');
+    const [isAuthLoading, setIsAuthLoading] = useState(false);
+    const [processingId, setProcessingId] = useState(null);
+    const [isServerAwake, setIsServerAwake] = useState(false);
 
     // Данные заметок
     const cachedNotes = storageService.getNotes() || [];
@@ -35,6 +41,16 @@ function App() {
     const [isConnecting, setIsConnecting] = useState(cachedNotes.length === 0);
     const [userName, setUserName] = useState(localStorage.getItem('userName') || '');
     const [noteText, setNoteText] = useState('');
+
+    // Верификация
+    const [code, setCode] = useState('');
+    const [isCodeSent, setIsCodeSent] = useState(false);
+
+    // --- УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК ИНПУТОВ ---
+    const handleInputChange = (e) => {
+        const { name, value } = e.target;
+        setFormData(prev => ({ ...prev, [name]: value }));
+    };
 
     // --- СИНХРОНИЗАЦИЯ ЗАМЕТОК ---
     const fetchNotes = async () => {
@@ -55,7 +71,6 @@ function App() {
     }, [isAuthenticated]);
 
     // --- ОБРАБОТЧИКИ АВТОРИЗАЦИИ ---
-
     const handleAuth = async (e) => {
         e.preventDefault();
         setIsAuthLoading(true);
@@ -64,19 +79,17 @@ function App() {
         try {
             let res;
             if (isLogin) {
-                res = await authService.login(email, password);
+                res = await authService.login(formData.email, formData.password);
             } else {
-                res = await authService.register({ name, email, password });
+                res = await authService.register(formData);
             }
 
             const { token, name: uName, isEmailVerified } = res.data;
 
-            // 1. Сохраняем данные СРАЗУ, чтобы работал notesService
             localStorage.setItem('token', token);
-            localStorage.setItem('userName', uName || email.split('@')[0]);
-            setUserName(uName || email.split('@')[0]);
-            
-            // 2. Активируем статус авторизации, чтобы fetchNotes и другие функции начали работать
+            localStorage.setItem('isEmailVerified', isEmailVerified);
+            localStorage.setItem('userName', uName || formData.email.split('@')[0]);
+            setUserName(uName || formData.email.split('@')[0]);
             setIsAuthenticated(true);
 
             if (!isEmailVerified) {
@@ -98,13 +111,36 @@ function App() {
     const handleBindEmail = async () => {
         try {
             setIsAuthLoading(true);
-            await authService.sendVerificationCode(email);
+            await authService.sendVerificationCode(formData.email);
             setMessage("Код отправлен! Проверьте почту.");
+            setIsCodeSent(true);
         } catch {
             setMessage("Не удалось отправить код.");
         } finally {
             setIsAuthLoading(false);
         }
+    };
+
+    const handleVerifyCode = async () => {
+        try {
+            setIsAuthLoading(true);
+            await authService.verifyCode(formData.email, code);
+            setMessage("Email успешно подтвержден!");
+            setIsGuest(false);
+            setShowVerifyPrompt(false);
+            localStorage.setItem('isGuest', 'false');
+            localStorage.setItem('isEmailVerified', 'true');
+        } catch {
+            setMessage("Неверный код или срок действия истек.");
+        } finally {
+            setIsAuthLoading(false);
+        }
+    };
+
+    const handleContinueAsGuest = () => {
+        setShowVerifyPrompt(false);
+        setIsCodeSent(false);
+        setMessage("");
     };
 
     const handleLogout = () => {
@@ -115,11 +151,12 @@ function App() {
         setUserName('');
         setNotesList([]);
         setShowVerifyPrompt(false);
+        setIsCodeSent(false);
+        setFormData({ name: '', email: '', password: '' });
         setMessage("");
     };
 
     // --- ОБРАБОТЧИКИ ЗАМЕТОК ---
-
     const handleSaveNote = async () => {
         if (!noteText.trim()) return;
         setProcessingId('new');
@@ -139,8 +176,6 @@ function App() {
         try {
             await notesService.update(id, newText);
             await fetchNotes();
-        } catch (error) {
-            console.error(error);
         } finally {
             setProcessingId(null);
         }
@@ -159,17 +194,15 @@ function App() {
 
     // --- DRAG & DROP ---
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
-    
+
     const handleDragEnd = async (event) => {
         const { active, over } = event;
         if (active && over && active.id !== over.id) {
             const oldIndex = notesList.findIndex((n) => n.id === active.id);
             const newIndex = notesList.findIndex((n) => n.id === over.id);
             const newList = arrayMove(notesList, oldIndex, newIndex);
-            
             setNotesList(newList);
             storageService.saveNotes(newList);
-
             try {
                 await notesService.reorder(newList.map(n => n.id));
             } catch {
@@ -177,8 +210,6 @@ function App() {
             }
         }
     };
-
-    // --- РЕНДЕР ---
 
     if (isConnecting && notesList.length === 0 && isAuthenticated) {
         return (
@@ -201,53 +232,47 @@ function App() {
             </header>
 
             {!isAuthenticated ? (
-                <div className={s.card}>
-                    {isAuthLoading && <div className={s.loader} style={{ margin: '0 auto 10px' }}></div>}
-                    <h3 style={{ textAlign: 'center', color: '#fff' }}>{isLogin ? 'Вход' : 'Регистрация'}</h3>
-                    <form onSubmit={handleAuth} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
-                        {!isLogin && (
-                            <input className={s.input} type="text" placeholder="Имя" value={name} onChange={e => setName(e.target.value)} required />
-                        )}
-                        <input className={s.input} type="email" placeholder="Email" value={email} onChange={e => setEmail(e.target.value)} required />
-                        <input className={s.input} type="password" placeholder="Пароль" value={password} onChange={e => setPassword(e.target.value)} required />
-                        
-                        {isLogin && <button type="button" className={s.linkBtn} style={{alignSelf: 'flex-end', fontSize: '12px'}}>Забыли пароль?</button>}
-
-                        <button className={s.button} type="submit" disabled={isAuthLoading}>
-                            {isLogin ? 'Войти' : 'Создать аккаунт'}
-                        </button>
-                    </form>
-                    <button className={s.linkBtn} onClick={() => { setIsLogin(!isLogin); setMessage(""); }}>
-                        {isLogin ? 'Нет аккаунта? Регистрация' : 'Есть аккаунт? Войти'}
-                    </button>
-                    {message && <div className={s.message}>{message}</div>}
-                </div>
+                <AuthForm 
+                    isLogin={isLogin}
+                    setIsLogin={setIsLogin}
+                    isAuthLoading={isAuthLoading}
+                    message={message}
+                    setMessage={setMessage}
+                    handleAuth={handleAuth}
+                    formData={formData}
+                    onChange={handleInputChange}
+                    setFormData={setFormData}
+                />
             ) : (
                 <>
-                    {/* ОКНО ПРЕДЛОЖЕНИЯ ПОДТВЕРЖДЕНИЯ (Отображается поверх основного контента) */}
-                    {showVerifyPrompt && (
-                        <div className={s.card} style={{position: 'fixed', top: '50%', left: '50%', transform: 'translate(-50%, -50%)', zIndex: 1000, boxShadow: '0 0 100px rgba(0,0,0,0.8)'}}>
-                            <h3 style={{ color: '#fff' }}>Почта не подтверждена</h3>
-                            <p style={{ color: '#ccc', fontSize: '14px' }}>Подтвердите Email, чтобы заметки не потерялись.</p>
-                            <button className={s.button} onClick={handleBindEmail} disabled={isAuthLoading}>
-                                {isAuthLoading ? 'Отправка...' : 'Привязать почту'}
-                            </button>
-                            <button className={s.linkBtn} onClick={() => setShowVerifyPrompt(false)} style={{ marginTop: '10px' }}>
-                                Продолжить как гость
-                            </button>
-                            {message && <div className={s.message}>{message}</div>}
-                        </div>
-                    )}
+                    <VerifyEmailModal 
+                        show={showVerifyPrompt}
+                        email={formData.email}
+                        isCodeSent={isCodeSent}
+                        code={code}
+                        setCode={setCode}
+                        isAuthLoading={isAuthLoading}
+                        message={message}
+                        onSendCode={handleBindEmail}
+                        onVerifyCode={handleVerifyCode}
+                        onClose={handleContinueAsGuest}
+                        setIsCodeSent={setIsCodeSent}
+                    />
 
                     <header className={s.stickyHeader}>
                         <div className={s.header}>
                             <h3 style={{ margin: 0, color: '#fff' }}>
-                                {userName} {isGuest && <small style={{opacity: 0.5}}>(Гость)</small>}
+                                {userName} {isGuest && <small style={{ opacity: 0.5 }}>(Гость)</small>}
                             </h3>
                             <button onClick={handleLogout} className={s.logoutBtn}>Выйти</button>
                         </div>
                         <div className={s.inputSection}>
-                            <textarea className={s.textarea} placeholder="Ваша заметка..." value={noteText} onChange={e => setNoteText(e.target.value)} />
+                            <textarea 
+                                className={s.textarea} 
+                                placeholder="Ваша заметка..." 
+                                value={noteText} 
+                                onChange={e => setNoteText(e.target.value)} 
+                            />
                             <button className={s.button} onClick={handleSaveNote} disabled={processingId === 'new' || !noteText.trim()}>
                                 {processingId === 'new' ? <div className={s.btnLoader}></div> : 'Сохранить'}
                             </button>
@@ -262,11 +287,11 @@ function App() {
                                 <SortableContext items={notesList.map(n => n.id)} strategy={verticalListSortingStrategy}>
                                     <div className={s.dragListWrapper}>
                                         {notesList.map(note => (
-                                            <NoteItem 
-                                                key={note.id} 
-                                                note={note} 
-                                                onDelete={handleDeleteNote} 
-                                                onUpdate={handleUpdateNote} 
+                                            <NoteItem
+                                                key={note.id}
+                                                note={note}
+                                                onDelete={handleDeleteNote}
+                                                onUpdate={handleUpdateNote}
                                                 isUpdating={processingId === note.id}
                                             />
                                         ))}
