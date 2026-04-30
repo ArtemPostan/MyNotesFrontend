@@ -5,9 +5,8 @@ export const authService = {
     login: async (email, password) => {
         const response = await api.post('/api/auth/login', { email, password });
 
-        if (response.data.token) {
-            const encryptionKey = CryptoJS.SHA256(password).toString();
-            localStorage.setItem('encryption_key', encryptionKey);
+        if (response.data.token && response.data.encryptionKey) {          
+            localStorage.setItem('encryption_key', response.data.encryptionKey);
         }
 
         return response;
@@ -15,14 +14,16 @@ export const authService = {
 
     register: (userData) => api.post('/api/auth/register', userData),
 
-    // Отправка кода (теперь напрямую через бэкенд)
     sendVerificationCode: (email) => {
         return api.post('/api/auth/send-code', { email });
     },
 
-    // НОВЫЙ МЕТОД: Отправка введенного кода для проверки
     verifyCode: (email, code) => {
         return api.post('/api/auth/verify-code', { email, code });
+    },
+
+    async verifyResetCode(email, code) {
+        return api.post('/api/auth/verify-reset-code', { email, code });
     },
 
     logout: () => {
@@ -30,5 +31,14 @@ export const authService = {
         localStorage.removeItem('encryption_key');
         localStorage.removeItem('userName');
         localStorage.removeItem('isGuest');
-    }
+    },
+
+    async resetPasswordRequest(email) {
+        return api.post('/api/auth/reset-password-request', { email });
+    },
+
+    async resetPasswordConfirm(email, code, newPassword) {
+        return api.post('/api/auth/reset-password-confirm', { email, code, newPassword });
+    },
+
 };

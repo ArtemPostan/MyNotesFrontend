@@ -8,7 +8,7 @@ import s from './App.module.css';
 import NoteItem from './components/NoteItem';
 import VerifyEmailModal from './components/VerifyEmailModal';
 import AuthForm from './components/AuthForm';
-
+import ForgotPasswordModal from './components/ForgotPasswordModal';
 // DnD Kit
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
 import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
@@ -22,7 +22,7 @@ function App() {
         !!localStorage.getItem('token') && localStorage.getItem('isEmailVerified') === 'false'
     );
 
-    // Данные полей (Объединенные в один объект)
+    // Данные полей 
     const [formData, setFormData] = useState({
         name: '',
         email: '',
@@ -42,9 +42,10 @@ function App() {
     const [userName, setUserName] = useState(localStorage.getItem('userName') || '');
     const [noteText, setNoteText] = useState('');
 
-    // Верификация
+    // Верификация и модалки
     const [code, setCode] = useState('');
     const [isCodeSent, setIsCodeSent] = useState(false);
+    const [showForgotModal, setShowForgotModal] = useState(false);
 
     // --- УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК ИНПУТОВ ---
     const handleInputChange = (e) => {
@@ -232,7 +233,7 @@ function App() {
             </header>
 
             {!isAuthenticated ? (
-                <AuthForm 
+                <AuthForm
                     isLogin={isLogin}
                     setIsLogin={setIsLogin}
                     isAuthLoading={isAuthLoading}
@@ -242,10 +243,14 @@ function App() {
                     formData={formData}
                     onChange={handleInputChange}
                     setFormData={setFormData}
+                    onForgotClick={() => {
+                        setMessage(""); // Очищаем ошибки перед открытием модалки
+                        setShowForgotModal(true);
+                    }}
                 />
             ) : (
                 <>
-                    <VerifyEmailModal 
+                    <VerifyEmailModal
                         show={showVerifyPrompt}
                         email={formData.email}
                         isCodeSent={isCodeSent}
@@ -267,11 +272,11 @@ function App() {
                             <button onClick={handleLogout} className={s.logoutBtn}>Выйти</button>
                         </div>
                         <div className={s.inputSection}>
-                            <textarea 
-                                className={s.textarea} 
-                                placeholder="Ваша заметка..." 
-                                value={noteText} 
-                                onChange={e => setNoteText(e.target.value)} 
+                            <textarea
+                                className={s.textarea}
+                                placeholder="Ваша заметка..."
+                                value={noteText}
+                                onChange={e => setNoteText(e.target.value)}
                             />
                             <button className={s.button} onClick={handleSaveNote} disabled={processingId === 'new' || !noteText.trim()}>
                                 {processingId === 'new' ? <div className={s.btnLoader}></div> : 'Сохранить'}
@@ -302,6 +307,13 @@ function App() {
                     </main>
                 </>
             )}
+
+            {/* Модалка восстановления с передачей email из формы */}
+            <ForgotPasswordModal
+                show={showForgotModal}
+                onClose={() => setShowForgotModal(false)}
+                userEmail={formData.email} 
+            />
         </div>
     );
 }
