@@ -42,17 +42,10 @@ export const notesService = {
     },
 
     delete: (id) => api.delete(`/api/notes/${id}`),
-
-    // Шифруем при обновлении
+   
     update: async (id, content) => {
-        const encryptedContent = encrypt(content);
-        const response = await api.patch(`/api/notes/${id}`, { content: encryptedContent });
-        
-        // Возвращаем ответ, расшифровав контент обратно (для синхронизации UI)
-        if (response.data && response.data.content) {
-            response.data.content = decrypt(response.data.content);
-        }
-        return response;
+        const encryptedContent = encrypt(content);        
+        return await api.patch(`/api/notes/${id}`, { content: encryptedContent });
     },
 
     reorder: async (noteIds) => {

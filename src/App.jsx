@@ -176,23 +176,42 @@ function App() {
         setProcessingId(id);
         try {
             await notesService.update(id, newText);
-            await fetchNotes();
+            //         await fetchNotes();
         } finally {
             setProcessingId(null);
         }
     };
 
     const handleDeleteNote = async (id) => {
-        if (!window.confirm("Удалить заметку?")) return;
-        setProcessingId(id);
+        const isConfirmed = window.confirm("Вы уверены, что хотите удалить эту заметку?");
+        if (!isConfirmed) return;
+
+        // 1. Находим заметку и её индекс в массиве
+        const index = notesList.findIndex(n => n.id === id);
+        if (index === -1) return;
+
+        const noteToDelete = notesList[index];
+
+        // 2. Мгновенно удаляем из UI
+        const newNotes = [...notesList];
+        newNotes.splice(index, 1);
+        setNotesList(newNotes);
+
         try {
+            // 3. Запрос к серверу
             await notesService.delete(id);
-            await fetchNotes();
-        } finally {
-            setProcessingId(null);
+            // Если всё ок, ничего делать не нужно, UI уже обновлен
+        } catch (error) {
+            // 4. Если ошибка — возвращаем на то же самое место
+            console.error("Ошибка при удалении:", error);
+
+            setNotesList(prevNotes => {
+                const restoredNotes = [...prevNotes];
+                restoredNotes.splice(index, 0, noteToDelete);
+                return restoredNotes;
+            });
         }
     };
-
     // --- DRAG & DROP ---
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
@@ -312,7 +331,7 @@ function App() {
             <ForgotPasswordModal
                 show={showForgotModal}
                 onClose={() => setShowForgotModal(false)}
-                userEmail={formData.email} 
+                userEmail={formData.email}
             />
         </div>
     );

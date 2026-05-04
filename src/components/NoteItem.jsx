@@ -6,7 +6,6 @@ import { CSS } from '@dnd-kit/utilities';
 
 function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
     const [text, setText] = useState(note.content);
-    const [prevContent, setPrevContent] = useState(note.content);
     const textareaRef = useRef(null);
 
     // Подключаем функционал сортировки dnd-kit
@@ -27,14 +26,6 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
         opacity: isDragging ? 0.6 : 1,
     };
 
-    // Синхронизируем стейт текста при обновлении пропсов
-    if (note.content !== prevContent) {
-        setPrevContent(note.content);
-        if (!isUpdating) {
-            setText(note.content);
-        }
-    }
-
     const autoResize = () => {
         const textarea = textareaRef.current;
         if (textarea) {
@@ -49,9 +40,12 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
 
     const debouncedSave = useMemo(
         () => debounce((id, newText) => {
-            onUpdate(id, newText);
-        }, 1000),
-        [onUpdate]
+
+            if (newText !== note.content) {
+                onUpdate(id, newText);
+            }
+        }, 1500),
+        [onUpdate, note.content]
     );
 
     const handleChange = (e) => {
