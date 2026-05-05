@@ -11,28 +11,33 @@ const encrypt = (text) => {
 };
 
 const decrypt = (cipherText) => {
-    const key = getSecretKey();
+    // Явно берем актуальное значение прямо из хранилища в момент вызова
+    const key = localStorage.getItem('encryption_key');
+
     if (!key || !cipherText) return cipherText;
+
+    // Если это не шифр, возвращаем как есть
+    if (!cipherText.startsWith('U2FsdGVkX1')) return cipherText;
+
     try {
         const bytes = CryptoJS.AES.decrypt(cipherText, key);
         const originalText = bytes.toString(CryptoJS.enc.Utf8);
-        return originalText || " [Ошибка расшифровки: возможно, сменился ключ] ";
+        return originalText || cipherText; // Если не расшифровалось, не портим текст
     } catch {
-        return " [Заметка зашифрована] ";
+        return cipherText;
     }
 };
 
 export const notesService = {
-    // Получаем все и сразу расшифровываем
     getAll: async () => {
         const response = await api.get('/api/notes');
-        if (Array.isArray(response.data)) {
-            response.data = response.data.map(note => ({
+        const decryptedData = Array.isArray(response.data)
+            ? response.data.map(note => ({
                 ...note,
                 content: decrypt(note.content)
-            }));
-        }
-        return response;
+            }))
+            : [];
+        return { ...response, data: decryptedData };
     },
 
     // Шифруем перед отправкой
@@ -42,9 +47,9 @@ export const notesService = {
     },
 
     delete: (id) => api.delete(`/api/notes/${id}`),
-   
+
     update: async (id, content) => {
-        const encryptedContent = encrypt(content);        
+        const encryptedContent = encrypt(content);
         return await api.patch(`/api/notes/${id}`, { content: encryptedContent });
     },
 

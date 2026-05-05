@@ -1,0 +1,115 @@
+.noteItem {
+    position: relative;
+    background-color: #242424;
+    color: #fff;
+    padding: 12px 12px; /* Сузили поля: сверху/снизу 12, сбоку 16 */
+    border-radius: 12px;
+    margin-top: 10px;
+    border: 1px solid #333;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+}
+
+/* Плашка перетаскивания теперь имеет отступ справа, чтобы не пересекаться с крестиком */
+.dragHandle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: grab;
+    color: #444;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    margin: 0 auto 8px auto;
+    padding: 4px;
+    font-size: 16px;
+    transition: all 0.2s;
+    height: 16px;
+    width: 40px;
+}
+
+.dragHandle:hover {
+    color: #007bff;
+    background: rgba(255, 255, 255, 0.08);
+}
+
+.inlineTextarea {
+    width: 100%;
+    background: transparent;
+    border: none;
+    outline: none;
+    resize: none;
+    color: #ffffff; 
+    font-family: inherit;
+    font-size: 15px; 
+    padding: 0;
+    margin-bottom: 4px;
+    display: block;
+    overflow: hidden;
+}
+
+.noteFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 4px;
+}
+
+.noteDate {
+    font-size: 11px; 
+    color: #666;   
+    letter-spacing: 0.3px;
+}
+
+.deleteBtn {
+    position: absolute;
+    top: 8px;    
+    right: 8px;
+
+    width: 24px;
+    height: 24px;
+
+    background-color: rgba(255, 77, 79, 0.05);
+    color: #ff4d4f;
+    border: 1px solid rgba(255, 77, 79, 0.3);
+    border-radius: 6px;
+    
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    line-height: 1;
+    z-index: 10;
+    transition: all 0.2s
+}
+
+.deleteBtn:hover {
+    background-color: #ff4d4f;
+    color: white;
+}
+
+.deleteBtn:disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+}
+
+.miniLoader {
+    width: 10px;
+    height: 10px;
+
+    position: absolute;
+    top: 50%;
+    left: 50%;
+
+    transform: translate(-50%, -50%);
+
+    border: 2px solid rgba(255, 255, 255, 0.2);
+    border-top-color: #007bff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: translate(-50%, -50%) rotate(360deg); }
+}

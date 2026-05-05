@@ -25,7 +25,7 @@ function App() {
     // Данные полей 
     const [formData, setFormData] = useState({
         name: '',
-        email: '',
+        email: localStorage.getItem('lastEmail') || '',
         password: ''
     });
 
@@ -55,21 +55,42 @@ function App() {
 
     // --- СИНХРОНИЗАЦИЯ ЗАМЕТОК ---
     const fetchNotes = async () => {
-        try {
-            const response = await notesService.getAll();
-            setNotesList(response.data);
-            storageService.saveNotes(response.data);
-            setIsServerAwake(true);
-        } catch (error) {
-            if (error.response) setIsServerAwake(true);
-        } finally {
-            setIsConnecting(false);
-        }
-    };
+    try {      
+        const response = await notesService.getAll();         
+        setNotesList(response.data);        
+        storageService.saveNotes(response.data);        
+        setIsServerAwake(true);
+    } catch (error) {
+        if (error.response) setIsServerAwake(true);
+    } finally {
+        setIsConnecting(false);
+    }
+};
 
     useEffect(() => {
-        if (isAuthenticated) fetchNotes();
-    }, [isAuthenticated]);
+    if (isAuthenticated) {
+        // ШАГ 1: Сначала быстро достаем кэш и дешифруем его
+        const cached = localStorage.getItem('mynotes_cache');
+        const key = localStorage.getItem('encryption_key');
+
+        if (cached && key) {
+            try {
+                const parsed = JSON.parse(cached);
+                const decrypted = parsed.map(note => ({
+                    ...note,
+                    // Используем decrypt, который мы поправили (с проверкой startsWith)
+                    content: notesService.decrypt(note.content) 
+                }));
+                setNotesList(decrypted);
+            } catch (e) {
+                console.error("Кэш поврежден", e);
+            }
+        }
+
+        // ШАГ 2: Только после этого идем на сервер за свежими данными
+        fetchNotes();
+    }
+}, [isAuthenticated]);
 
     // --- ОБРАБОТЧИКИ АВТОРИЗАЦИИ ---
     const handleAuth = async (e) => {
@@ -86,7 +107,7 @@ function App() {
             }
 
             const { token, name: uName, isEmailVerified } = res.data;
-
+            localStorage.setItem('lastEmail', formData.email);
             localStorage.setItem('token', token);
             localStorage.setItem('isEmailVerified', isEmailVerified);
             localStorage.setItem('userName', uName || formData.email.split('@')[0]);
@@ -145,16 +166,29 @@ function App() {
     };
 
     const handleLogout = () => {
-        authService.logout();
-        localStorage.clear();
+        if (formData.email) {
+            localStorage.setItem('lastEmail', formData.email);
+        }
+        // authService.logout();
+
+        const keysToRemove = [
+            'token', 'encryption_key', 'userName',
+            'isGuest', 'isEmailVerified', 'mynotes_cache'
+        ];
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+
         setIsAuthenticated(false);
         setIsGuest(false);
         setUserName('');
         setNotesList([]);
         setShowVerifyPrompt(false);
         setIsCodeSent(false);
-        setFormData({ name: '', email: '', password: '' });
         setMessage("");
+        setFormData({
+            name: '',
+            email: localStorage.getItem('lastEmail') || '',
+            password: ''
+        });
     };
 
     // --- ОБРАБОТЧИКИ ЗАМЕТОК ---

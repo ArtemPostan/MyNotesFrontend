@@ -3,17 +3,19 @@
 .container {
     padding: 20px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-    max-width: 500px; /* Немного сузил для лучшего вида */
+    max-width: 500px;
+    /* Немного сузил для лучшего вида */
     margin: 0 auto;
     color: #eee;
-    background-color: #1a1a1a; /* Темный фон всей страницы */
+    background-color: #1a1a1a;
+    /* Темный фон всей страницы */
     min-height: 100vh;
 }
 
 .stickyHeader {
     position: sticky;
     top: 0;
-    background-color: #1a1a1a; 
+    background-color: #1a1a1a;
     z-index: 100;
     padding: 20px 0;
     border-bottom: 1px solid #333;
@@ -31,15 +33,16 @@
 .inputSection {
     display: flex;
     flex-direction: column;
-    gap: 15px;
+    gap: 12px;
     background-color: #242424;
-    padding: 20px;
+    padding: 14px;
     border-radius: 16px;
     border: 1px solid #333;
 }
 
 /* Поле ввода: черное с белыми буквами */
-.textarea, .input {
+.textarea,
+.input {
     width: 100%;
     background-color: #000000;
     color: #ffffff;
@@ -53,44 +56,77 @@
     transition: border-color 0.2s;
 }
 
-.textarea {
-    height: 120px;
-    resize: none;
+.inputSection .textarea {
+    padding: 10px 12px; /* Компактные отступы только здесь */
+    font-size: 15px;
+    height: 80px;
+    background-color: #0c0c0c;
 }
 
-.textarea:focus, .input:focus {
+.authForm .button {
+    height: 48px; /* Возвращаем крупную кнопку для логина */
+    width: 100%;
+    font-size: 16px;
+}
+
+.inputSection .button {
+    height: 36px; 
+    padding: 0 16px;
+    font-size: 14px;
+    width: auto;
+    align-self: flex-end;
+    min-width: 120px;
+}
+
+.textarea {
+    width: 100%;
+    background-color: #0c0c0c; /* Сделали чуть темнее для контраста с карточкой */
+    color: #ffffff;
+    border: 1px solid #333;
+    border-radius: 8px;
+    padding: 10px 12px; /* Уменьшили падинги внутри инпута */
+    box-sizing: border-box;
+    font-family: inherit;
+    font-size: 15px; /* Шрифт чуть меньше */
+    height: 80px;   /* Уменьшили начальную высоту */
+    resize: none;
+    outline: none;
+    transition: border-color 0.2s;
+}
+
+.textarea:focus,
+.input:focus {
     border-color: #007bff;
 }
 
 .button {
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;
-    min-width: 100px;
-    height: 40px;
-    position: relative;
-    width: 100%;
-    padding: 14px;
-    color: white;
-    background-color: #007bff;
-    border: none;
-    border-radius: 8px;
-    cursor: pointer;
-    font-weight: 600;
-    font-size: 16px;
+    
+    height: 36px; 
+    padding: 0 12px;
+    font-size: 14px;
+    width: auto; 
+    align-self: flex-end; 
+    min-width: 120px;
 }
 
 .btnLoader {
     width: 18px;
     height: 18px;
     border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #ffffff; /* Белый цвет для контраста с синей кнопкой */
+    border-top-color: #ffffff;
+    /* Белый цвет для контраста с синей кнопкой */
     border-radius: 50%;
     animation: btnSpin 0.8s linear infinite;
 }
 
 @keyframes btnSpin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Визуальное состояние заблокированной кнопки */
@@ -103,46 +139,7 @@
     background-color: #0069d9;
 }
 
-/* Заметки: темный фон, белые буквы */
-.noteItem {
-    position: relative;
-    background-color: #242424;
-    color: #fff;
-    padding: 20px;
-    border-radius: 12px;
-    margin-top: 16px;
-    border: 1px solid #333;
-    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
-}
 
-.noteDate {
-    display: block;
-    margin-top: 12px;
-    font-size: 13px;
-    color: #888;
-}
-
-.deleteBtn {
-    position: absolute;
-    top: 15px;
-    right: 15px;
-    background-color: rgba(255, 77, 79, 0.1);
-    color: #ff4d4f;
-    border: 1px solid #ff4d4f;
-    border-radius: 6px;
-    width: 20px;
-    height: 20px;
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: all 0.2s;
-}
-
-.deleteBtn:hover {
-    background-color: #ff4d4f;
-    color: white;
-}
 
 .header {
     display: flex;
@@ -176,21 +173,6 @@
     font-size: 14px;
 }
 
-.inlineTextarea {
-    width: 100%;
-    background: transparent;
-    border: none;
-    outline: none;
-    resize: none;
-    color: #ffffff; 
-    font-family: inherit;
-    font-size: 1rem;
-    padding: 0;
-    margin-bottom: 10px;
-    display: block;
-    overflow: hidden;
-}
-
 .inlineTextarea:focus {
     color: #007bff;
     transition: color 0.2s;
@@ -216,7 +198,7 @@
     display: flex;
     align-items: center;
     gap: 5px;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     padding: 5px 10px;
     border-radius: 20px;
 }
@@ -242,64 +224,22 @@
     left: 0;
     width: 100vw;
     height: 100vh;
-    background: rgba(0, 0, 0, 0.7); /* Темный фон с прозрачностью */
-    backdrop-filter: blur(4px);    /* Размытие заднего фона для красоты */
+    background: rgba(0, 0, 0, 0.7);
+    /* Темный фон с прозрачностью */
+    backdrop-filter: blur(4px);
+    /* Размытие заднего фона для красоты */
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    z-index: 9999;                 /* Поверх всего */
+    z-index: 9999;
+    /* Поверх всего */
     color: white;
 }
 
 .statusText {
     text-align: center;
     margin-top: 20px;
-}
-
-.noteFooter {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-top: 8px;
-}
-
-/* Стили для маленького индикатора */
-.miniLoader {
-    width: 12px;
-    height: 12px;
-    border: 2px solid rgba(255, 255, 255, 0.2);
-    border-top-color: #007bff; /* Цвет "крутилки" */
-    border-radius: 50%;
-    animation: spin 0.8s linear infinite;
-}
-
-@keyframes spin {
-    to { transform: rotate(360deg); }
-}
-
-.deleteBtn:disabled {
-    opacity: 0.3;
-    cursor: not-allowed;
-}
-
-.dragHandle {
-    display: flex;
-    justify-content: center;
-    align-items: center;
-    cursor: grab;
-    color: #555;
-    background: rgba(255, 255, 255, 0.05);
-    border-radius: 6px;
-    margin-bottom: 10px;
-    padding: 4px;
-    font-size: 18px;
-    transition: color 0.2s, background 0.2s;
-}
-
-.dragHandle:hover {
-    color: #007bff;
-    background: rgba(255, 255, 255, 0.1);
 }
 
 .dragHandle:active {
@@ -309,12 +249,12 @@
 .dragListWrapper {
     display: flex;
     flex-direction: column;
-    gap: 16px; 
+    gap: 16px;
 }
 
 .dragIcon {
     color: #555;
     font-size: 18px;
     line-height: 1;
-    user-select: none; 
+    user-select: none;
 }

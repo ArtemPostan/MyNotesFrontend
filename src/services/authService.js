@@ -27,10 +27,10 @@ export const authService = {
     },
 
     logout: () => {
-        localStorage.removeItem('token');
-        localStorage.removeItem('encryption_key');
-        localStorage.removeItem('userName');
-        localStorage.removeItem('isGuest');
+        // localStorage.removeItem('token');
+        // localStorage.removeItem('encryption_key');
+        // localStorage.removeItem('userName');
+        // localStorage.removeItem('isGuest');
     },
 
     async resetPasswordRequest(email) {
