@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import s from './NoteItem.module.css';
+import SettingsModal from './SettingsModal';
 import debounce from 'lodash.debounce';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
@@ -7,6 +8,7 @@ import { CSS } from '@dnd-kit/utilities';
 function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
     const [text, setText] = useState(note.content);
     const textareaRef = useRef(null);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
     // Подключаем функционал сортировки dnd-kit
     const {
@@ -131,6 +133,17 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
                 >
                     ✕
                 </button>
+                <button
+                    className={s.settingsBtn}
+                    onClick={() => setIsSettingsOpen(true)}
+                    title="Настройки"
+                >
+                    ⚙️
+                </button>
+                <SettingsModal
+                    show={isSettingsOpen}
+                    onClose={() => setIsSettingsOpen(false)}
+                />
             </div>
         </div>
     );

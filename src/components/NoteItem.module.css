@@ -113,3 +113,25 @@
 @keyframes spin {
     to { transform: translate(-50%, -50%) rotate(360deg); }
 }
+
+.noteContainer {
+    position: relative; /* Обязательно для позиционирования кнопки */
+    padding-bottom: 30px; /* Резервируем место под кнопку */
+}
+
+.settingsBtn {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    opacity: 0.6;
+    transition: opacity 0.2s, transform 0.2s;
+}
+
+.settingsBtn:hover {
+    opacity: 1;
+    transform: rotate(45deg);
+}

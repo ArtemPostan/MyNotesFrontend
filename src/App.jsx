@@ -55,42 +55,42 @@ function App() {
 
     // --- СИНХРОНИЗАЦИЯ ЗАМЕТОК ---
     const fetchNotes = async () => {
-    try {      
-        const response = await notesService.getAll();         
-        setNotesList(response.data);        
-        storageService.saveNotes(response.data);        
-        setIsServerAwake(true);
-    } catch (error) {
-        if (error.response) setIsServerAwake(true);
-    } finally {
-        setIsConnecting(false);
-    }
-};
+        try {
+            const response = await notesService.getAll();
+            setNotesList(response.data);
+            storageService.saveNotes(response.data);
+            setIsServerAwake(true);
+        } catch (error) {
+            if (error.response) setIsServerAwake(true);
+        } finally {
+            setIsConnecting(false);
+        }
+    };
 
     useEffect(() => {
-    if (isAuthenticated) {
-        // ШАГ 1: Сначала быстро достаем кэш и дешифруем его
-        const cached = localStorage.getItem('mynotes_cache');
-        const key = localStorage.getItem('encryption_key');
+        if (isAuthenticated) {
+            // ШАГ 1: Сначала быстро достаем кэш и дешифруем его
+            const cached = localStorage.getItem('mynotes_cache');
+            const key = localStorage.getItem('encryption_key');
 
-        if (cached && key) {
-            try {
-                const parsed = JSON.parse(cached);
-                const decrypted = parsed.map(note => ({
-                    ...note,
-                    // Используем decrypt, который мы поправили (с проверкой startsWith)
-                    content: notesService.decrypt(note.content) 
-                }));
-                setNotesList(decrypted);
-            } catch (e) {
-                console.error("Кэш поврежден", e);
+            if (cached && key) {
+                try {
+                    const parsed = JSON.parse(cached);
+                    const decrypted = parsed.map(note => ({
+                        ...note,
+                        // Используем decrypt, который мы поправили (с проверкой startsWith)
+                        content: notesService.decrypt(note.content)
+                    }));
+                    setNotesList(decrypted);
+                } catch (e) {
+                    console.error("Кэш поврежден", e);
+                }
             }
-        }
 
-        // ШАГ 2: Только после этого идем на сервер за свежими данными
-        fetchNotes();
-    }
-}, [isAuthenticated]);
+            // ШАГ 2: Только после этого идем на сервер за свежими данными
+            fetchNotes();
+        }
+    }, [isAuthenticated]);
 
     // --- ОБРАБОТЧИКИ АВТОРИЗАЦИИ ---
     const handleAuth = async (e) => {
@@ -341,7 +341,13 @@ function App() {
                         {notesList.length === 0 ? (
                             <div style={{ textAlign: 'center', color: '#666', marginTop: '60px' }}><p>Заметок нет</p></div>
                         ) : (
-                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} autoScroll={{
+                                thresholds: {
+                                    top: 0.4,    
+                                    bottom: 0.1,  
+                                },
+                                acceleration: 5   // Скорость прокрутки
+                            }}>
                                 <SortableContext items={notesList.map(n => n.id)} strategy={verticalListSortingStrategy}>
                                     <div className={s.dragListWrapper}>
                                         {notesList.map(note => (

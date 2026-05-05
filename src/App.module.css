@@ -104,7 +104,7 @@
     display: flex;
     align-items: center;
     justify-content: center;
-    
+
     height: 36px; 
     padding: 0 12px;
     font-size: 14px;
@@ -257,4 +257,12 @@
     font-size: 18px;
     line-height: 1;
     user-select: none;
+}
+
+.listSection {
+    width: 100%;
+    max-width: 600px;
+    margin: 0 auto;
+    padding-bottom: 50px; /* Чтобы последнюю заметку было удобно тянуть */
+    min-height: 300px;    /* Чтобы было куда тянуть, если заметок мало */
 }

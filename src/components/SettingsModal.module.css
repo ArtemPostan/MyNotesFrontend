@@ -1,0 +1,49 @@
+.overlay {
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,0.5);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 1000;
+}
+
+.modal {
+    background: #2a2a2a;
+    padding: 20px;
+    border-radius: 12px;
+    width: 250px;
+    text-align: center;
+    color: white;
+    box-shadow: 0 4px 15px rgba(0,0,0,0.3);
+}
+
+.iconsRow {
+    display: flex;
+    justify-content: center;
+    gap: 25px;
+    margin: 20px 0;
+}
+
+.iconBtn {
+    background: #3a3a3a;
+    border: none;
+    padding: 10px;
+    border-radius: 8px;
+    font-size: 24px;
+    cursor: pointer;
+    transition: background 0.2s;
+}
+
+.iconBtn:hover {
+    background: #4a4a4a;
+}
+
+.closeBtn {
+    background: #555;
+    color: white;
+    border: none;
+    padding: 8px 16px;
+    border-radius: 6px;
+    cursor: pointer;
+}
