@@ -1,16 +1,10 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
-import s from './NoteItem.module.css';
-import SettingsModal from './SettingsModal';
-import debounce from 'lodash.debounce';
+import React, { useState, useRef, useLayoutEffect } from 'react';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
+import SettingsModal from './SettingsModal';
+import s from './NoteItem.module.css';
 
-function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
-    const [text, setText] = useState(note.content);
-    const textareaRef = useRef(null);
-    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
-
-    // Подключаем функционал сортировки dnd-kit
+const NoteItem = ({ note, onDelete, onUpdate, isUpdating, setEditingNote }) => {
     const {
         attributes,
         listeners,
@@ -20,84 +14,62 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
         isDragging
     } = useSortable({ id: note.id });
 
-    // Стили для плавного перемещения
+    // 1. Инициализация стейта
+    const [text, setText] = useState(note.content);
+    const [prevContent, setPrevContent] = useState(note.content);
+    const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+    const textareaRef = useRef(null);
+
+    // 2. СИНХРОНИЗАЦИЯ ВО ВРЕМЯ РЕНДЕРА (Вместо useEffect)
+    // Как только note.content в пропсах изменится (расшифруется), 
+    // мы обновляем локальный стейт прямо здесь. 
+    // React перерендерит компонент мгновенно, не дожидаясь отрисовки старых данных.
+    if (note.content !== prevContent) {
+        setPrevContent(note.content);
+        setText(note.content);
+    }
+
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        zIndex: isDragging ? 100 : 1,
-        opacity: isDragging ? 0.6 : 1,
+        opacity: isDragging ? 0.5 : 1,
+        zIndex: isDragging ? 999 : 1,
+        position: 'relative'
     };
 
-    const autoResize = () => {
+    // 3. АВТО-ВЫСОТА
+    const adjustHeight = () => {
         const textarea = textareaRef.current;
         if (textarea) {
             textarea.style.height = 'auto';
-            textarea.style.height = textarea.scrollHeight + 'px';
+            textarea.style.height = `${textarea.scrollHeight}px`;
         }
     };
 
-    useEffect(() => {
-        autoResize();
-    }, [text]);
-
-    const debouncedSave = useMemo(
-        () => debounce((id, newText) => {
-
-            if (newText !== note.content) {
-                onUpdate(id, newText);
-            }
-        }, 1500),
-        [onUpdate, note.content]
-    );
+    // Используем useLayoutEffect только для манипуляций с DOM (высотой)
+    useLayoutEffect(() => {
+        adjustHeight();
+    }, [text]); // Высота пересчитается всякий раз, когда меняется текст
 
     const handleChange = (e) => {
-        const newText = e.target.value;
-        setText(newText);
-        debouncedSave(note.id, newText);
+        const val = e.target.value;
+        setText(val);
+        setEditingNote({ id: note.id, content: val });
     };
 
-    // Логика форматирования даты
-    const isEdited = note.updatedAt && note.updatedAt !== note.createdAt;
-    const displayDate = isEdited ? note.updatedAt : note.createdAt;
-    const label = isEdited ? "Обновлено " : "";
-
-    const formatDate = (dateValue) => {
-        if (!dateValue) return "";
-
-        // Просто создаем объект даты. 
-        // Если в строке есть 'Z' или '+00:00', браузер сам сконвертирует время в местное.
-        const date = new Date(dateValue);
-
-        if (isNaN(date.getTime())) {
-            // Если пришел массив (на случай, если аннотация не сработала)
-            if (Array.isArray(dateValue)) {
-                const [year, month, day, hour, minute, second = 0] = dateValue;
-                return new Date(Date.UTC(year, month - 1, day, hour, minute, second))
-                    .toLocaleString('ru-RU', {
-                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                    });
-            }
-            return "Дата не указана";
-        }
-
-        return date.toLocaleString('ru-RU', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
-    };
-
-    const formattedDate = formatDate(displayDate);
+    const formattedDate = note.updatedAt
+        ? new Date(note.updatedAt).toLocaleString([], { 
+            hour: '2-digit', minute: '2-digit', 
+            day: '2-digit', month: '2-digit' 
+          })
+        : '';
 
     return (
         <div
-            ref={setNodeRef} // Реф для библиотеки DnD
+            ref={setNodeRef}
             style={style}
-            className={s.noteItem}
+            className={`${s.noteItem} ${note.isCompleted ? s.completed : ''}`}
         >
-            {/* 1. Область для перетаскивания (Handle) */}
             <div
                 className={s.dragHandle}
                 {...attributes}
@@ -107,46 +79,40 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
                 <span className={s.dragIcon}>⠿</span>
             </div>
 
-            {/* 2. Поле контента */}
             <textarea
                 ref={textareaRef}
-                className={s.inlineTextarea}
+                className={`${s.inlineTextarea} ${note.isCompleted ? s.textStrike : ''}`}
                 value={text}
                 onChange={handleChange}
                 spellCheck="false"
-                rows="1"
+                disabled={note.isCompleted}
+                placeholder="Текст заметки..."
             />
 
-            {/* 3. Футер заметки */}
             <div className={s.noteFooter}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    <span className={s.noteDate}>
-                        {label}{formattedDate}
-                    </span>
+                    <span className={s.noteDate}>{formattedDate}</span>
                     {isUpdating && <div className={s.miniLoader}></div>}
                 </div>
 
-                <button
-                    className={s.deleteBtn}
-                    onClick={() => onDelete(note.id)}
-                    disabled={isUpdating}
-                >
-                    ✕
-                </button>
-                <button
-                    className={s.settingsBtn}
-                    onClick={() => setIsSettingsOpen(true)}
-                    title="Настройки"
-                >
-                    ⚙️
-                </button>
-                <SettingsModal
-                    show={isSettingsOpen}
-                    onClose={() => setIsSettingsOpen(false)}
-                />
+                <div className={s.controls}>
+                    <button className={s.settingsBtn} onClick={() => setIsSettingsOpen(true)}>⚙️</button>
+                    <button 
+                        className={s.deleteBtn} 
+                        onClick={() => onDelete(note.id)} 
+                        disabled={isUpdating}
+                    >✕</button>
+                </div>
             </div>
+
+            <SettingsModal
+                show={isSettingsOpen}
+                onClose={() => setIsSettingsOpen(false)}
+                note={note}
+                onUpdate={onUpdate}
+            />
         </div>
     );
-}
+};
 
 export default NoteItem;

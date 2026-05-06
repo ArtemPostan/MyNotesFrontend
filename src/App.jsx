@@ -41,6 +41,41 @@ function App() {
     const [isConnecting, setIsConnecting] = useState(cachedNotes.length === 0);
     const [userName, setUserName] = useState(localStorage.getItem('userName') || '');
     const [noteText, setNoteText] = useState('');
+    const [editingNote, setEditingNote] = useState({ id: null, content: '' });
+
+    const handleUpdateNote = React.useCallback(async (id, updateData) => {
+        setProcessingId(id);
+        try {
+            // 1. Оптимистично обновляем стейт, чтобы UI не ждал ответа
+            setNotesList(prev => {
+                const updated = prev.map(note =>
+                    note.id === id ? { ...note, ...updateData } : note
+                );
+                storageService.saveNotes(updated);
+                return updated;
+            });
+
+            // 2. Отправка на сервер
+            await notesService.update(id, updateData);
+
+        } catch (error) {
+            console.error("Ошибка при обновлении:", error);
+        } finally {
+            setProcessingId(null);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!editingNote.id) return;
+
+        const handler = setTimeout(() => {
+            handleUpdateNote(editingNote.id, { content: editingNote.content });
+        }, 1000);
+
+        return () => clearTimeout(handler);
+    }, [editingNote.content, editingNote.id, handleUpdateNote]);
+
+
 
     // Верификация и модалки
     const [code, setCode] = useState('');
@@ -194,27 +229,52 @@ function App() {
     // --- ОБРАБОТЧИКИ ЗАМЕТОК ---
     const handleSaveNote = async () => {
         if (!noteText.trim()) return;
-        setProcessingId('new');
+
+        // 1. Создаем временный объект с ЧИСТЫМ текстом для мгновенного отображения
+        const tempId = `temp-${Date.now()}`;
+        const plainText = noteText; // Сохраняем текст, пока не очистили поле
+
+        const optimisticNote = {
+            id: tempId,
+            content: plainText, // Сразу чистый текст
+            isCompleted: false,
+            updatedAt: new Date().toISOString(),
+            isTemp: true // Флаг, если захочешь показать лоадер на самой заметке
+        };
+
+        // 2. Мгновенно обновляем UI и очищаем поле ввода
+        setNoteText('');
+        setNotesList(prev => [optimisticNote, ...prev]);
+
         try {
-            await notesService.create(noteText);
-            setNoteText('');
-            await fetchNotes();
-        } catch {
+            // 3. Отправляем на сервер (предполагаем, что сервис сам зашифрует внутри)
+            const response = await notesService.create(plainText);
+            const savedNoteFromDB = response.data;
+
+            setNotesList(prev => {
+                const updatedList = prev.map(n =>
+                    // Мы берем данные из БД (id, даты), но принудительно ставим ЧИСТЫЙ текст
+                    n.id === tempId ? { ...savedNoteFromDB, content: plainText } : n
+                );
+
+                storageService.saveNotes(updatedList);
+                return updatedList;
+            });
+
+        } catch (error) {
+            console.error("Ошибка при сохранении:", error);
             setMessage("Ошибка при сохранении заметки");
+
+            // 5. Откат: если сервер выдал ошибку, удаляем временную заметку из списка
+            setNotesList(prev => prev.filter(n => n.id !== tempId));
+            // Возвращаем текст в поле ввода, чтобы пользователь не потерял написанное
+            setNoteText(plainText);
         } finally {
             setProcessingId(null);
         }
     };
 
-    const handleUpdateNote = async (id, newText) => {
-        setProcessingId(id);
-        try {
-            await notesService.update(id, newText);
-            //         await fetchNotes();
-        } finally {
-            setProcessingId(null);
-        }
-    };
+
 
     const handleDeleteNote = async (id) => {
         const isConfirmed = window.confirm("Вы уверены, что хотите удалить эту заметку?");
@@ -343,8 +403,8 @@ function App() {
                         ) : (
                             <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} autoScroll={{
                                 thresholds: {
-                                    top: 0.4,    
-                                    bottom: 0.1,  
+                                    top: 0.4,
+                                    bottom: 0.1,
                                 },
                                 acceleration: 5   // Скорость прокрутки
                             }}>
@@ -352,10 +412,11 @@ function App() {
                                     <div className={s.dragListWrapper}>
                                         {notesList.map(note => (
                                             <NoteItem
-                                                key={note.id}
+                                                key={`${note.id}-${note.content}`}
                                                 note={note}
                                                 onDelete={handleDeleteNote}
                                                 onUpdate={handleUpdateNote}
+                                                setEditingNote={setEditingNote} 
                                                 isUpdating={processingId === note.id}
                                             />
                                         ))}

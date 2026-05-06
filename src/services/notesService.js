@@ -1,7 +1,6 @@
 import api from './api';
 import CryptoJS from 'crypto-js';
 
-// Хелпер для получения ключа
 const getSecretKey = () => localStorage.getItem('encryption_key');
 
 const encrypt = (text) => {
@@ -11,18 +10,14 @@ const encrypt = (text) => {
 };
 
 const decrypt = (cipherText) => {
-    // Явно берем актуальное значение прямо из хранилища в момент вызова
     const key = localStorage.getItem('encryption_key');
-
     if (!key || !cipherText) return cipherText;
-
-    // Если это не шифр, возвращаем как есть
     if (!cipherText.startsWith('U2FsdGVkX1')) return cipherText;
 
     try {
         const bytes = CryptoJS.AES.decrypt(cipherText, key);
         const originalText = bytes.toString(CryptoJS.enc.Utf8);
-        return originalText || cipherText; // Если не расшифровалось, не портим текст
+        return originalText || cipherText;
     } catch {
         return cipherText;
     }
@@ -40,21 +35,35 @@ export const notesService = {
         return { ...response, data: decryptedData };
     },
 
-    // Шифруем перед отправкой
     create: (content) => {
+        // Используем локальную функцию encrypt
         const encryptedContent = encrypt(content);
         return api.post('/api/notes', { content: encryptedContent });
     },
 
     delete: (id) => api.delete(`/api/notes/${id}`),
 
-    update: async (id, content) => {
-        const encryptedContent = encrypt(content);
-        return await api.patch(`/api/notes/${id}`, { content: encryptedContent });
+    update: async (id, data) => {
+        try {
+            const payload = { ...data };
+
+            // ИСПРАВЛЕНО: вызываем локальный encrypt вместо notesService.encrypt
+            if (payload.content) {
+                payload.content = encrypt(payload.content);
+            }
+
+            return await api.patch(`/api/notes/${id}`, payload);
+        } catch (error) {
+            console.error("Ошибка при обновлении заметки в сервисе:", error);
+            throw error;
+        }
     },
 
     reorder: async (noteIds) => {
-        // Отправляем массив строк (ID) в правильном порядке
         return await api.patch('/api/notes/reorder', noteIds);
-    }
+    },
+
+    // Полезно экспортировать функции наружу, если они понадобятся в App.js
+    encrypt,
+    decrypt
 };
