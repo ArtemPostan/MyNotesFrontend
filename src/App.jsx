@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { authService } from './services/authService';
 import { notesService } from './services/notesService';
 import { storageService } from './services/storageService';
@@ -25,7 +25,7 @@ function App() {
     // Данные полей 
     const [formData, setFormData] = useState({
         name: '',
-        email: localStorage.getItem('lastEmail') || '',
+        email: '',
         password: ''
     });
 
@@ -41,41 +41,6 @@ function App() {
     const [isConnecting, setIsConnecting] = useState(cachedNotes.length === 0);
     const [userName, setUserName] = useState(localStorage.getItem('userName') || '');
     const [noteText, setNoteText] = useState('');
-    const [editingNote, setEditingNote] = useState({ id: null, content: '' });
-
-    const handleUpdateNote = React.useCallback(async (id, updateData) => {
-        setProcessingId(id);
-        try {
-            // 1. Оптимистично обновляем стейт, чтобы UI не ждал ответа
-            setNotesList(prev => {
-                const updated = prev.map(note =>
-                    note.id === id ? { ...note, ...updateData } : note
-                );
-                storageService.saveNotes(updated);
-                return updated;
-            });
-
-            // 2. Отправка на сервер
-            await notesService.update(id, updateData);
-
-        } catch (error) {
-            console.error("Ошибка при обновлении:", error);
-        } finally {
-            setProcessingId(null);
-        }
-    }, []);
-
-    useEffect(() => {
-        if (!editingNote.id) return;
-
-        const handler = setTimeout(() => {
-            handleUpdateNote(editingNote.id, { content: editingNote.content });
-        }, 1000);
-
-        return () => clearTimeout(handler);
-    }, [editingNote.content, editingNote.id, handleUpdateNote]);
-
-
 
     // Верификация и модалки
     const [code, setCode] = useState('');
@@ -103,28 +68,7 @@ function App() {
     };
 
     useEffect(() => {
-        if (isAuthenticated) {
-            // ШАГ 1: Сначала быстро достаем кэш и дешифруем его
-            const cached = localStorage.getItem('mynotes_cache');
-            const key = localStorage.getItem('encryption_key');
-
-            if (cached && key) {
-                try {
-                    const parsed = JSON.parse(cached);
-                    const decrypted = parsed.map(note => ({
-                        ...note,
-                        // Используем decrypt, который мы поправили (с проверкой startsWith)
-                        content: notesService.decrypt(note.content)
-                    }));
-                    setNotesList(decrypted);
-                } catch (e) {
-                    console.error("Кэш поврежден", e);
-                }
-            }
-
-            // ШАГ 2: Только после этого идем на сервер за свежими данными
-            fetchNotes();
-        }
+        if (isAuthenticated) fetchNotes();
     }, [isAuthenticated]);
 
     // --- ОБРАБОТЧИКИ АВТОРИЗАЦИИ ---
@@ -142,7 +86,7 @@ function App() {
             }
 
             const { token, name: uName, isEmailVerified } = res.data;
-            localStorage.setItem('lastEmail', formData.email);
+
             localStorage.setItem('token', token);
             localStorage.setItem('isEmailVerified', isEmailVerified);
             localStorage.setItem('userName', uName || formData.email.split('@')[0]);
@@ -201,80 +145,50 @@ function App() {
     };
 
     const handleLogout = () => {
-        if (formData.email) {
-            localStorage.setItem('lastEmail', formData.email);
-        }
-        // authService.logout();
-
-        const keysToRemove = [
-            'token', 'encryption_key', 'userName',
-            'isGuest', 'isEmailVerified', 'mynotes_cache'
-        ];
-        keysToRemove.forEach(key => localStorage.removeItem(key));
-
+        authService.logout();
+        localStorage.clear();
         setIsAuthenticated(false);
         setIsGuest(false);
         setUserName('');
         setNotesList([]);
         setShowVerifyPrompt(false);
         setIsCodeSent(false);
+        setFormData({ name: '', email: '', password: '' });
         setMessage("");
-        setFormData({
-            name: '',
-            email: localStorage.getItem('lastEmail') || '',
-            password: ''
-        });
     };
 
     // --- ОБРАБОТЧИКИ ЗАМЕТОК ---
     const handleSaveNote = async () => {
         if (!noteText.trim()) return;
-
-        // 1. Создаем временный объект с ЧИСТЫМ текстом для мгновенного отображения
-        const tempId = `temp-${Date.now()}`;
-        const plainText = noteText; // Сохраняем текст, пока не очистили поле
-
-        const optimisticNote = {
-            id: tempId,
-            content: plainText, // Сразу чистый текст
-            isCompleted: false,
-            updatedAt: new Date().toISOString(),
-            isTemp: true // Флаг, если захочешь показать лоадер на самой заметке
-        };
-
-        // 2. Мгновенно обновляем UI и очищаем поле ввода
-        setNoteText('');
-        setNotesList(prev => [optimisticNote, ...prev]);
-
+        setProcessingId('new');
         try {
-            // 3. Отправляем на сервер (предполагаем, что сервис сам зашифрует внутри)
-            const response = await notesService.create(plainText);
-            const savedNoteFromDB = response.data;
-
-            setNotesList(prev => {
-                const updatedList = prev.map(n =>
-                    // Мы берем данные из БД (id, даты), но принудительно ставим ЧИСТЫЙ текст
-                    n.id === tempId ? { ...savedNoteFromDB, content: plainText } : n
-                );
-
-                storageService.saveNotes(updatedList);
-                return updatedList;
-            });
-
-        } catch (error) {
-            console.error("Ошибка при сохранении:", error);
+            await notesService.create(noteText);
+            setNoteText('');
+            await fetchNotes();
+        } catch {
             setMessage("Ошибка при сохранении заметки");
-
-            // 5. Откат: если сервер выдал ошибку, удаляем временную заметку из списка
-            setNotesList(prev => prev.filter(n => n.id !== tempId));
-            // Возвращаем текст в поле ввода, чтобы пользователь не потерял написанное
-            setNoteText(plainText);
         } finally {
             setProcessingId(null);
         }
     };
 
+    const handleUpdateNote = useCallback(async (id, newText) => {
+        setProcessingId(id);
+        try {
+            // notesService сам зашифрует newText перед отправкой
+            await notesService.update(id, newText);
 
+            // Обновляем список, чтобы стейт соответствовал базе
+            setNotesList(prev => prev.map(n =>
+                n.id === id ? { ...n, content: newText } : n
+            ));
+        } catch (err) {
+            console.error("Ошибка сохранения:", err);
+            alert("Не удалось сохранить заметку");
+        } finally {
+            setProcessingId(null);
+        }
+    }, []);
 
     const handleDeleteNote = async (id) => {
         const isConfirmed = window.confirm("Вы уверены, что хотите удалить эту заметку?");
@@ -401,22 +315,15 @@ function App() {
                         {notesList.length === 0 ? (
                             <div style={{ textAlign: 'center', color: '#666', marginTop: '60px' }}><p>Заметок нет</p></div>
                         ) : (
-                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} autoScroll={{
-                                thresholds: {
-                                    top: 0.4,
-                                    bottom: 0.1,
-                                },
-                                acceleration: 5   // Скорость прокрутки
-                            }}>
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                 <SortableContext items={notesList.map(n => n.id)} strategy={verticalListSortingStrategy}>
                                     <div className={s.dragListWrapper}>
                                         {notesList.map(note => (
                                             <NoteItem
-                                                key={`${note.id}-${note.content}`}
+                                                key={note.id}
                                                 note={note}
                                                 onDelete={handleDeleteNote}
                                                 onUpdate={handleUpdateNote}
-                                                setEditingNote={setEditingNote} 
                                                 isUpdating={processingId === note.id}
                                             />
                                         ))}
