@@ -1,70 +1,58 @@
 import React, { useState, useEffect } from 'react';
 import { authService } from './services/authService';
-import { notesService } from './services/notesService';
-import { storageService } from './services/storageService';
 import s from './App.module.css';
+
+// Хуки
+import { useNotes } from './hooks/useNotes'; // Путь к вашему новому файлу с хуком
 
 // Компоненты
 import NoteItem from './components/NoteItem';
 import VerifyEmailModal from './components/VerifyEmailModal';
 import AuthForm from './components/AuthForm';
 import ForgotPasswordModal from './components/ForgotPasswordModal';
+
 // DnD Kit
 import { DndContext, closestCenter, PointerSensor, useSensor, useSensors } from '@dnd-kit/core';
-import { arrayMove, SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable';
 
 function App() {
     // --- СОСТОЯНИЯ АВТОРИЗАЦИИ ---
     const [isAuthenticated, setIsAuthenticated] = useState(!!localStorage.getItem('token'));
     const [isLogin, setIsLogin] = useState(true);
     const [isGuest, setIsGuest] = useState(localStorage.getItem('isGuest') === 'true');
+    const [userName, setUserName] = useState(localStorage.getItem('userName') || '');
     const [showVerifyPrompt, setShowVerifyPrompt] = useState(
         !!localStorage.getItem('token') && localStorage.getItem('isEmailVerified') === 'false'
     );
 
-    // Данные полей 
+    // --- СОСТОЯНИЯ ИНТЕРФЕЙСА ---
     const [formData, setFormData] = useState({
         name: '',
         email: localStorage.getItem('lastEmail') || '',
         password: ''
     });
-
-    // Системные состояния
     const [message, setMessage] = useState('');
     const [isAuthLoading, setIsAuthLoading] = useState(false);
-    const [processingId, setProcessingId] = useState(null);
-    const [isServerAwake, setIsServerAwake] = useState(false);
-
-    // Данные заметок
-    const cachedNotes = storageService.getNotes() || [];
-    const [notesList, setNotesList] = useState(cachedNotes);
-    const [isConnecting, setIsConnecting] = useState(cachedNotes.length === 0);
-    const [userName, setUserName] = useState(localStorage.getItem('userName') || '');
     const [noteText, setNoteText] = useState('');
     const [editingNote, setEditingNote] = useState({ id: null, content: '' });
+    const [showForgotModal, setShowForgotModal] = useState(false);
+    const [code, setCode] = useState('');
+    const [isCodeSent, setIsCodeSent] = useState(false);
 
-    const handleUpdateNote = React.useCallback(async (id, updateData) => {
-        setProcessingId(id);
-        try {
-            // 1. Оптимистично обновляем стейт, чтобы UI не ждал ответа
-            setNotesList(prev => {
-                const updated = prev.map(note =>
-                    note.id === id ? { ...note, ...updateData } : note
-                );
-                storageService.saveNotes(updated);
-                return updated;
-            });
+    // --- ПОДКЛЮЧЕНИЕ КАСТОМНОГО ХУКА ---
+    // Вся логика работы с заметками теперь здесь
+    const {
+        notesList,
+        isConnecting,
+        processingId,
+        isServerAwake,
+        handleSaveNote,
+        handleUpdateNote,
+        handleDeleteNote,
+        handleDragEnd
+    } = useNotes(isAuthenticated);
 
-            // 2. Отправка на сервер
-            await notesService.update(id, updateData);
-
-        } catch (error) {
-            console.error("Ошибка при обновлении:", error);
-        } finally {
-            setProcessingId(null);
-        }
-    }, []);
-
+    // --- ЭФФЕКТ ДЛЯ АВТОСОХРАНЕНИЯ РЕДАКТИРУЕМОЙ ЗАМЕТКИ ---
     useEffect(() => {
         if (!editingNote.id) return;
 
@@ -75,57 +63,11 @@ function App() {
         return () => clearTimeout(handler);
     }, [editingNote.content, editingNote.id, handleUpdateNote]);
 
-
-
-    // Верификация и модалки
-    const [code, setCode] = useState('');
-    const [isCodeSent, setIsCodeSent] = useState(false);
-    const [showForgotModal, setShowForgotModal] = useState(false);
-
-    // --- УНИВЕРСАЛЬНЫЙ ОБРАБОТЧИК ИНПУТОВ ---
+    // --- ОБРАБОТЧИКИ ВВОДА ---
     const handleInputChange = (e) => {
         const { name, value } = e.target;
         setFormData(prev => ({ ...prev, [name]: value }));
     };
-
-    // --- СИНХРОНИЗАЦИЯ ЗАМЕТОК ---
-    const fetchNotes = async () => {
-        try {
-            const response = await notesService.getAll();
-            setNotesList(response.data);
-            storageService.saveNotes(response.data);
-            setIsServerAwake(true);
-        } catch (error) {
-            if (error.response) setIsServerAwake(true);
-        } finally {
-            setIsConnecting(false);
-        }
-    };
-
-    useEffect(() => {
-        if (isAuthenticated) {
-            // ШАГ 1: Сначала быстро достаем кэш и дешифруем его
-            const cached = localStorage.getItem('mynotes_cache');
-            const key = localStorage.getItem('encryption_key');
-
-            if (cached && key) {
-                try {
-                    const parsed = JSON.parse(cached);
-                    const decrypted = parsed.map(note => ({
-                        ...note,
-                        // Используем decrypt, который мы поправили (с проверкой startsWith)
-                        content: notesService.decrypt(note.content)
-                    }));
-                    setNotesList(decrypted);
-                } catch (e) {
-                    console.error("Кэш поврежден", e);
-                }
-            }
-
-            // ШАГ 2: Только после этого идем на сервер за свежими данными
-            fetchNotes();
-        }
-    }, [isAuthenticated]);
 
     // --- ОБРАБОТЧИКИ АВТОРИЗАЦИИ ---
     const handleAuth = async (e) => {
@@ -146,6 +88,7 @@ function App() {
             localStorage.setItem('token', token);
             localStorage.setItem('isEmailVerified', isEmailVerified);
             localStorage.setItem('userName', uName || formData.email.split('@')[0]);
+            
             setUserName(uName || formData.email.split('@')[0]);
             setIsAuthenticated(true);
 
@@ -165,11 +108,22 @@ function App() {
         }
     };
 
+    const handleLogout = () => {
+        const keysToRemove = ['token', 'encryption_key', 'userName', 'isGuest', 'isEmailVerified', 'mynotes_cache'];
+        keysToRemove.forEach(key => localStorage.removeItem(key));
+
+        setIsAuthenticated(false);
+        setIsGuest(false);
+        setUserName('');
+        setShowVerifyPrompt(false);
+        setMessage("");
+    };
+
     const handleBindEmail = async () => {
         try {
             setIsAuthLoading(true);
             await authService.sendVerificationCode(formData.email);
-            setMessage("Код отправлен! Проверьте почту.");
+            setMessage("Код отправлен!");
             setIsCodeSent(true);
         } catch {
             setMessage("Не удалось отправить код.");
@@ -182,149 +136,21 @@ function App() {
         try {
             setIsAuthLoading(true);
             await authService.verifyCode(formData.email, code);
-            setMessage("Email успешно подтвержден!");
             setIsGuest(false);
             setShowVerifyPrompt(false);
             localStorage.setItem('isGuest', 'false');
             localStorage.setItem('isEmailVerified', 'true');
         } catch {
-            setMessage("Неверный код или срок действия истек.");
+            setMessage("Неверный код.");
         } finally {
             setIsAuthLoading(false);
         }
     };
 
-    const handleContinueAsGuest = () => {
-        setShowVerifyPrompt(false);
-        setIsCodeSent(false);
-        setMessage("");
-    };
-
-    const handleLogout = () => {
-        if (formData.email) {
-            localStorage.setItem('lastEmail', formData.email);
-        }
-        // authService.logout();
-
-        const keysToRemove = [
-            'token', 'encryption_key', 'userName',
-            'isGuest', 'isEmailVerified', 'mynotes_cache'
-        ];
-        keysToRemove.forEach(key => localStorage.removeItem(key));
-
-        setIsAuthenticated(false);
-        setIsGuest(false);
-        setUserName('');
-        setNotesList([]);
-        setShowVerifyPrompt(false);
-        setIsCodeSent(false);
-        setMessage("");
-        setFormData({
-            name: '',
-            email: localStorage.getItem('lastEmail') || '',
-            password: ''
-        });
-    };
-
-    // --- ОБРАБОТЧИКИ ЗАМЕТОК ---
-    const handleSaveNote = async () => {
-        if (!noteText.trim()) return;
-
-        // 1. Создаем временный объект с ЧИСТЫМ текстом для мгновенного отображения
-        const tempId = `temp-${Date.now()}`;
-        const plainText = noteText; // Сохраняем текст, пока не очистили поле
-
-        const optimisticNote = {
-            id: tempId,
-            content: plainText, // Сразу чистый текст
-            isCompleted: false,
-            updatedAt: new Date().toISOString(),
-            isTemp: true // Флаг, если захочешь показать лоадер на самой заметке
-        };
-
-        // 2. Мгновенно обновляем UI и очищаем поле ввода
-        setNoteText('');
-        setNotesList(prev => [optimisticNote, ...prev]);
-
-        try {
-            // 3. Отправляем на сервер (предполагаем, что сервис сам зашифрует внутри)
-            const response = await notesService.create(plainText);
-            const savedNoteFromDB = response.data;
-
-            setNotesList(prev => {
-                const updatedList = prev.map(n =>
-                    // Мы берем данные из БД (id, даты), но принудительно ставим ЧИСТЫЙ текст
-                    n.id === tempId ? { ...savedNoteFromDB, content: plainText } : n
-                );
-
-                storageService.saveNotes(updatedList);
-                return updatedList;
-            });
-
-        } catch (error) {
-            console.error("Ошибка при сохранении:", error);
-            setMessage("Ошибка при сохранении заметки");
-
-            // 5. Откат: если сервер выдал ошибку, удаляем временную заметку из списка
-            setNotesList(prev => prev.filter(n => n.id !== tempId));
-            // Возвращаем текст в поле ввода, чтобы пользователь не потерял написанное
-            setNoteText(plainText);
-        } finally {
-            setProcessingId(null);
-        }
-    };
-
-
-
-    const handleDeleteNote = async (id) => {
-        const isConfirmed = window.confirm("Вы уверены, что хотите удалить эту заметку?");
-        if (!isConfirmed) return;
-
-        // 1. Находим заметку и её индекс в массиве
-        const index = notesList.findIndex(n => n.id === id);
-        if (index === -1) return;
-
-        const noteToDelete = notesList[index];
-
-        // 2. Мгновенно удаляем из UI
-        const newNotes = [...notesList];
-        newNotes.splice(index, 1);
-        setNotesList(newNotes);
-
-        try {
-            // 3. Запрос к серверу
-            await notesService.delete(id);
-            // Если всё ок, ничего делать не нужно, UI уже обновлен
-        } catch (error) {
-            // 4. Если ошибка — возвращаем на то же самое место
-            console.error("Ошибка при удалении:", error);
-
-            setNotesList(prevNotes => {
-                const restoredNotes = [...prevNotes];
-                restoredNotes.splice(index, 0, noteToDelete);
-                return restoredNotes;
-            });
-        }
-    };
-    // --- DRAG & DROP ---
+    // --- НАСТРОЙКИ DRAG & DROP (Остаются в App, так как это логика UI) ---
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-    const handleDragEnd = async (event) => {
-        const { active, over } = event;
-        if (active && over && active.id !== over.id) {
-            const oldIndex = notesList.findIndex((n) => n.id === active.id);
-            const newIndex = notesList.findIndex((n) => n.id === over.id);
-            const newList = arrayMove(notesList, oldIndex, newIndex);
-            setNotesList(newList);
-            storageService.saveNotes(newList);
-            try {
-                await notesService.reorder(newList.map(n => n.id));
-            } catch {
-                console.error("Ошибка сохранения порядка");
-            }
-        }
-    };
-
+    // --- LOADING SCREEN ---
     if (isConnecting && notesList.length === 0 && isAuthenticated) {
         return (
             <div className={s.connectingOverlay}>
@@ -355,11 +181,7 @@ function App() {
                     handleAuth={handleAuth}
                     formData={formData}
                     onChange={handleInputChange}
-                    setFormData={setFormData}
-                    onForgotClick={() => {
-                        setMessage(""); // Очищаем ошибки перед открытием модалки
-                        setShowForgotModal(true);
-                    }}
+                    onForgotClick={() => setShowForgotModal(true)}
                 />
             ) : (
                 <>
@@ -373,8 +195,7 @@ function App() {
                         message={message}
                         onSendCode={handleBindEmail}
                         onVerifyCode={handleVerifyCode}
-                        onClose={handleContinueAsGuest}
-                        setIsCodeSent={setIsCodeSent}
+                        onClose={() => setShowVerifyPrompt(false)}
                     />
 
                     <header className={s.stickyHeader}>
@@ -391,7 +212,11 @@ function App() {
                                 value={noteText}
                                 onChange={e => setNoteText(e.target.value)}
                             />
-                            <button className={s.button} onClick={handleSaveNote} disabled={processingId === 'new' || !noteText.trim()}>
+                            <button 
+                                className={s.button} 
+                                onClick={() => handleSaveNote(noteText, setNoteText)} 
+                                disabled={processingId === 'new' || !noteText.trim()}
+                            >
                                 {processingId === 'new' ? <div className={s.btnLoader}></div> : 'Сохранить'}
                             </button>
                         </div>
@@ -399,20 +224,16 @@ function App() {
 
                     <main className={s.listSection}>
                         {notesList.length === 0 ? (
-                            <div style={{ textAlign: 'center', color: '#666', marginTop: '60px' }}><p>Заметок нет</p></div>
+                            <div style={{ textAlign: 'center', color: '#666', marginTop: '60px' }}>
+                                <p>Заметок нет</p>
+                            </div>
                         ) : (
-                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd} autoScroll={{
-                                thresholds: {
-                                    top: 0.4,
-                                    bottom: 0.1,
-                                },
-                                acceleration: 5   // Скорость прокрутки
-                            }}>
+                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
                                 <SortableContext items={notesList.map(n => n.id)} strategy={verticalListSortingStrategy}>
                                     <div className={s.dragListWrapper}>
                                         {notesList.map(note => (
                                             <NoteItem
-                                                key={`${note.id}-${note.content}`}
+                                                key={`${note.id}`}
                                                 note={note}
                                                 onDelete={handleDeleteNote}
                                                 onUpdate={handleUpdateNote}
@@ -428,7 +249,6 @@ function App() {
                 </>
             )}
 
-            {/* Модалка восстановления с передачей email из формы */}
             <ForgotPasswordModal
                 show={showForgotModal}
                 onClose={() => setShowForgotModal(false)}

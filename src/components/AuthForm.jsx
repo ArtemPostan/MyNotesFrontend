@@ -8,16 +8,12 @@ const AuthForm = ({
     message,
     setMessage,
     handleAuth,
-    formData,
-    setFormData,
+    formData, 
+    onChange,
     onForgotClick
 }) => {
 
-    const handleChange = (e) => {
-        const { name, value } = e.target;
-        setFormData(prev => ({ ...prev, [name]: value }));
-    };
-
+   
     return (
         <div className={s.card}>
             {/* Добавляем обертку authForm, чтобы стили применились правильно */}
@@ -36,7 +32,7 @@ const AuthForm = ({
                             name="name"
                             placeholder="Имя"
                             value={formData.name}
-                            onChange={handleChange}
+                            onChange={onChange}
                             autoComplete="username"
                             required
                         />
@@ -47,7 +43,7 @@ const AuthForm = ({
                         name="email"
                         placeholder="Email"
                         value={formData.email}
-                        onChange={handleChange}
+                        onChange={onChange}
                         autoComplete="email" 
                         required
                     />
@@ -57,7 +53,7 @@ const AuthForm = ({
                         name="password"
                         placeholder="Пароль"
                         value={formData.password}
-                        onChange={handleChange}
+                        onChange={onChange}
                         autoComplete="current-password"
                         required
                     />
