@@ -1,12 +1,12 @@
 import axios from 'axios';
 
-// const api = axios.create({
-//     baseURL: "https://bbac22ncehpq498kutp5.containers.yandexcloud.net"
-// });
-
-const api = axios.create({ 
-    baseURL: 'http://localhost:8080' 
+const api = axios.create({
+    baseURL: "https://bbac22ncehpq498kutp5.containers.yandexcloud.net"
 });
+
+// const api = axios.create({ 
+//     baseURL: 'http://localhost:8080' 
+// });
 
 // Перехватчик: перед КАЖДЫМ запросом добавляет токен из localStorage
 api.interceptors.request.use((config) => {
