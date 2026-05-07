@@ -80,6 +80,10 @@ export const useNotes = (isAuthenticated) => {
     const handleUpdateNote = useCallback(async (id, updateData) => {
         setProcessingId(id);
         try {
+            const payload = typeof updateData === 'string'
+                ? { content: updateData }
+                : updateData;
+
             const response = await notesService.update(id, updateData);
 
             // Используем хелпер

@@ -45,16 +45,16 @@ export const notesService = {
 
     update: async (id, data) => {
         try {
-            const payload = { ...data };
+            // Если data — это строка, превращаем её в объект
+            const payload = typeof data === 'string' ? { content: data } : { ...data };
 
-            // ИСПРАВЛЕНО: вызываем локальный encrypt вместо notesService.encrypt
             if (payload.content) {
                 payload.content = encrypt(payload.content);
             }
 
             return await api.patch(`/api/notes/${id}`, payload);
         } catch (error) {
-            console.error("Ошибка при обновлении заметки в сервисе:", error);
+            console.error("Ошибка при обновлении:", error);
             throw error;
         }
     },
