@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState} from 'react';
 import { authService } from './services/authService';
 import s from './App.module.css';
 
 // Хуки
-import { useNotes } from './hooks/useNotes'; // Путь к вашему новому файлу с хуком
+import { useNotes } from './hooks/useNotes'; 
 
 // Компоненты
 import NoteItem from './components/NoteItem';
@@ -28,19 +28,19 @@ function App() {
     // --- СОСТОЯНИЯ ИНТЕРФЕЙСА ---
     const [formData, setFormData] = useState({
         name: '',
-        email: localStorage.getItem('lastEmail') || '',
+        email: '',
         password: ''
     });
     const [message, setMessage] = useState('');
     const [isAuthLoading, setIsAuthLoading] = useState(false);
     const [noteText, setNoteText] = useState('');
-    const [editingNote, setEditingNote] = useState({ id: null, content: '' });
+    
+    // Модалки
     const [showForgotModal, setShowForgotModal] = useState(false);
     const [code, setCode] = useState('');
     const [isCodeSent, setIsCodeSent] = useState(false);
 
     // --- ПОДКЛЮЧЕНИЕ КАСТОМНОГО ХУКА ---
-    // Вся логика работы с заметками теперь здесь
     const {
         notesList,
         isConnecting,
@@ -51,17 +51,6 @@ function App() {
         handleDeleteNote,
         handleDragEnd
     } = useNotes(isAuthenticated);
-
-    // --- ЭФФЕКТ ДЛЯ АВТОСОХРАНЕНИЯ РЕДАКТИРУЕМОЙ ЗАМЕТКИ ---
-    useEffect(() => {
-        if (!editingNote.id) return;
-
-        const handler = setTimeout(() => {
-            handleUpdateNote(editingNote.id, { content: editingNote.content });
-        }, 1000);
-
-        return () => clearTimeout(handler);
-    }, [editingNote.content, editingNote.id, handleUpdateNote]);
 
     // --- ОБРАБОТЧИКИ ВВОДА ---
     const handleInputChange = (e) => {
@@ -84,7 +73,7 @@ function App() {
             }
 
             const { token, name: uName, isEmailVerified } = res.data;
-            localStorage.setItem('lastEmail', formData.email);
+
             localStorage.setItem('token', token);
             localStorage.setItem('isEmailVerified', isEmailVerified);
             localStorage.setItem('userName', uName || formData.email.split('@')[0]);
@@ -117,6 +106,7 @@ function App() {
         setUserName('');
         setShowVerifyPrompt(false);
         setMessage("");
+        setFormData({ name: '', email: '', password: '' });
     };
 
     const handleBindEmail = async () => {
@@ -147,7 +137,7 @@ function App() {
         }
     };
 
-    // --- НАСТРОЙКИ DRAG & DROP (Остаются в App, так как это логика UI) ---
+    // --- НАСТРОЙКИ DRAG & DROP ---
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
     // --- LOADING SCREEN ---
@@ -233,11 +223,10 @@ function App() {
                                     <div className={s.dragListWrapper}>
                                         {notesList.map(note => (
                                             <NoteItem
-                                                key={`${note.id}`}
+                                                key={note.id}
                                                 note={note}
                                                 onDelete={handleDeleteNote}
                                                 onUpdate={handleUpdateNote}
-                                                setEditingNote={setEditingNote} 
                                                 isUpdating={processingId === note.id}
                                             />
                                         ))}
