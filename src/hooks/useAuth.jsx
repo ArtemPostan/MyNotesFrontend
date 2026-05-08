@@ -38,7 +38,7 @@ export function useAuth() {
             localStorage.setItem('token', token);
             localStorage.setItem('isEmailVerified', isEmailVerified);
             localStorage.setItem('userName', uName || formData.email.split('@')[0]);
-            
+
             setUserName(uName || formData.email.split('@')[0]);
             setIsAuthenticated(true);
 
@@ -52,7 +52,28 @@ export function useAuth() {
                 setShowVerifyPrompt(false);
             }
         } catch (err) {
-            setMessage(err.response?.data?.message || "Ошибка авторизации");
+            const statusCode = err.response?.status;
+            const serverMessage = err.response?.data?.message;
+
+            if (isLogin) {
+                // --- ОШИБКИ ПРИ ВХОДЕ ---
+                if (statusCode === 401 || serverMessage === "Invalid password") {
+                    setMessage("Неверный пароль. Попробуйте еще раз.");
+                } else if (statusCode === 404 || serverMessage === "User not found") {
+                    setMessage("Пользователь с таким email не найден.");
+                } else {
+                    setMessage("Не удалось войти. Проверьте данные.");
+                }
+            } else {
+                // --- ОШИБКИ ПРИ РЕГИСТРАЦИИ ---
+                if (serverMessage === "Email already in use" || statusCode === 409) {
+                    setMessage("Этот email уже занят. Попробуйте войти.");
+                } else if (serverMessage === "Password too weak") {
+                    setMessage("Слишком простой пароль. Нужно минимум 6 символов.");
+                } else {
+                    setMessage("Ошибка при регистрации. Попробуйте другой email.");
+                }
+            }
         } finally {
             setIsAuthLoading(false);
         }
