@@ -94,11 +94,30 @@ export function useAuth() {
     const handleBindEmail = async () => {
         try {
             setIsAuthLoading(true);
+            setMessage("");
             await authService.sendVerificationCode(formData.email);
             setMessage("Код отправлен!");
             setIsCodeSent(true);
-        } catch {
-            setMessage("Не удалось отправить код.");
+        } catch (err) {
+            const rawData = err.response?.data;
+            const rawMessage = typeof rawData === 'string' ? rawData : (rawData?.message || "");
+
+            console.error("ПОЛНАЯ ОШИБКА ОТ СЕРВЕРА:", rawData);
+
+            // ПРОВЕРКА 1: Удаленный ящик (Mail.ru и др.)
+            if (rawMessage.toLowerCase().includes("550") ||
+                rawMessage.toLowerCase().includes("terminated") ||
+                rawMessage.toLowerCase().includes("unavailable")) {
+                setMessage("Эта почта удалена или недоступна (ошибка 550).");
+            }
+            // ПРОВЕРКА 2: Обычная 400 ошибка
+            else if (err.response?.status === 400) {
+                setMessage("Сервер отклонил адрес: " + (rawMessage || "некорректный email"));
+            }
+            // ЗАПАСНОЙ ВАРИАНТ
+            else {
+                setMessage(rawMessage || "Не удалось отправить код. Попробуйте позже.");
+            }
         } finally {
             setIsAuthLoading(false);
         }
