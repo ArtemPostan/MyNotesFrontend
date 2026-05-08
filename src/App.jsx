@@ -2,8 +2,8 @@ import React, { useState } from 'react';
 import s from './App.module.css';
 
 // Хуки
-import { useNotes } from './hooks/useNotes'; 
-import { useAuth } from './hooks/useAuth'; 
+import { useNotes } from './hooks/useNotes';
+import { useAuth } from './hooks/useAuth';
 
 // Компоненты
 import NoteItem from './components/NoteItem';
@@ -18,24 +18,24 @@ import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 function App() {
     // Подключаем логику авторизации
     const auth = useAuth();
-    
+
     // Состояния интерфейса, которые не относятся напрямую к бизнес-логике auth
     const [showForgotModal, setShowForgotModal] = useState(false);
     const [noteText, setNoteText] = useState('');
 
     // Подключаем логику заметок
     const {
-        notesList, isConnecting, processingId, isServerAwake,
+        notesList, isReady, isConnecting, processingId, isServerAwake,
         handleSaveNote, handleUpdateNote, handleDeleteNote, handleDragEnd
     } = useNotes(auth.isAuthenticated);
 
     const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
 
-    if (isConnecting && notesList.length === 0 && auth.isAuthenticated) {
+    if (auth.isAuthenticated && (isConnecting || !isReady)) {
         return (
             <div className={s.connectingOverlay}>
                 <div className={s.loader}></div>
-                <h2>Синхронизация...</h2>
+                <h2>Синхронизация и дешифровка...</h2>
             </div>
         );
     }
@@ -93,9 +93,9 @@ function App() {
                                 value={noteText}
                                 onChange={e => setNoteText(e.target.value)}
                             />
-                            <button 
-                                className={s.button} 
-                                onClick={() => handleSaveNote(noteText, setNoteText)} 
+                            <button
+                                className={s.button}
+                                onClick={() => handleSaveNote(noteText, setNoteText)}
                                 disabled={processingId === 'new' || !noteText.trim()}
                             >
                                 {processingId === 'new' ? <div className={s.btnLoader}></div> : 'Сохранить'}

@@ -4,68 +4,84 @@ import { storageService } from '../services/storageService';
 import { arrayMove } from '@dnd-kit/sortable';
 
 export const useNotes = (isAuthenticated) => {
+    // 1. Инициализация состояний
     const cachedNotes = storageService.getNotes() || [];
     const [notesList, setNotesList] = useState(cachedNotes);
     const [isConnecting, setIsConnecting] = useState(cachedNotes.length === 0);
     const [processingId, setProcessingId] = useState(null);
     const [isServerAwake, setIsServerAwake] = useState(false);
+    const [isReady, setIsReady] = useState(false);
 
+    // Вспомогательный метод для дешифровки и обработки
+    const processNoteResponse = useCallback((rawNote) => {
+        return {
+            ...rawNote,
+            content: notesService.decrypt(rawNote.content),
+            updatedAt: rawNote.updatedAt
+        };
+    }, []);
+
+    // Функция загрузки данных
     const fetchNotes = useCallback(async () => {
         try {
             const response = await notesService.getAll();
+            // Данные дешифруются внутри сервиса getAll
             setNotesList(response.data);
             storageService.saveNotes(response.data);
             setIsServerAwake(true);
+            setIsReady(true);
         } catch (error) {
             if (error.response) setIsServerAwake(true);
+            // Если есть кэш, мы всё равно помечаем систему как готовую
+            setIsReady(true);
         } finally {
             setIsConnecting(false);
         }
     }, []);
 
+    // Логика при загрузке и изменении статуса авторизации
     useEffect(() => {
         if (isAuthenticated) {
+            const encryptionKey = localStorage.getItem('encryption_key');
+
+            if (!encryptionKey) {
+                const cached = storageService.getNotes();
+                if (!cached || cached.length === 0) {
+                    setIsReady(true);
+                    setIsConnecting(false);
+                } else {
+                    // Если кэш есть, а ключа нет — тогда ждем (это старый юзер)
+                    setIsReady(false);
+                }
+            }
+
             const cached = storageService.getNotes();
-            if (cached) {
+            if (cached && cached.length > 0) {
                 try {
-                    // Если у вас заметки шифруются, дешифруем их здесь
                     const decrypted = cached.map(note => ({
                         ...note,
-                        content: notesService.decrypt ? notesService.decrypt(note.content) : note.content
+                        content: notesService.decrypt(note.content)
                     }));
                     setNotesList(decrypted);
+                    setIsReady(true);
                 } catch (e) {
                     console.error("Ошибка дешифровки кэша", e);
                 }
             }
             fetchNotes();
         }
-    }, [isAuthenticated]);
-    // Вспомогательный метод для обработки ответа от сервера
-    const processNoteResponse = useCallback((rawNote) => {
-        return {
-            ...rawNote,
-            // Дешифруем контент, используя наш сервис
-            content: notesService.decrypt(rawNote.content),
-            // Гарантируем, что дата корректно распознается как строка или объект даты
-            updatedAt: rawNote.updatedAt
-        };
-    }, []);
+    }, [isAuthenticated, fetchNotes]);
 
+    // Обработчики действий
     const handleSaveNote = async (text, setNoteText) => {
         if (!text.trim()) return;
         const tempId = `temp-${Date.now()}`;
-        const plainText = text;
-
-        setNotesList(prev => [{ id: tempId, content: plainText, updatedAt: new Date().toISOString() }, ...prev]);
+        setNotesList(prev => [{ id: tempId, content: text, updatedAt: new Date().toISOString() }, ...prev]);
         setNoteText('');
 
         try {
-            const response = await notesService.create(plainText);
-
-            // Используем хелпер
+            const response = await notesService.create(text);
             const finalNote = processNoteResponse(response.data);
-
             setNotesList(prev => {
                 const updated = prev.map(n => n.id === tempId ? finalNote : n);
                 storageService.saveNotes(updated);
@@ -73,22 +89,15 @@ export const useNotes = (isAuthenticated) => {
             });
         } catch (error) {
             setNotesList(prev => prev.filter(n => n.id !== tempId));
-            setNoteText(plainText);
+            setNoteText(text);
         }
     };
 
     const handleUpdateNote = useCallback(async (id, updateData) => {
         setProcessingId(id);
         try {
-            const payload = typeof updateData === 'string'
-                ? { content: updateData }
-                : updateData;
-
             const response = await notesService.update(id, updateData);
-
-            // Используем хелпер
             const finalNote = processNoteResponse(response.data);
-
             setNotesList(prev => {
                 const newList = prev.map(n => n.id === id ? finalNote : n);
                 storageService.saveNotes(newList);
@@ -103,20 +112,17 @@ export const useNotes = (isAuthenticated) => {
 
     const handleDeleteNote = async (id) => {
         if (!window.confirm("Вы уверены?")) return;
-
         const index = notesList.findIndex(n => n.id === id);
         if (index === -1) return;
 
         const noteToDelete = notesList[index];
         const newNotes = notesList.filter(n => n.id !== id);
-
-        setNotesList(newNotes); // Оптимистичное обновление
+        setNotesList(newNotes);
 
         try {
             await notesService.delete(id);
+            storageService.saveNotes(newNotes);
         } catch (error) {
-            console.error("Ошибка при удалении:", error);
-            // Откат в случае ошибки
             setNotesList(prev => {
                 const restored = [...prev];
                 restored.splice(index, 0, noteToDelete);
@@ -145,6 +151,7 @@ export const useNotes = (isAuthenticated) => {
 
     return {
         notesList,
+        isReady,
         isConnecting,
         processingId,
         isServerAwake,
