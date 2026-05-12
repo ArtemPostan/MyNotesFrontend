@@ -1,17 +1,16 @@
-/* src/styles/App.module.css */
-
+/* Основной контейнер приложения */
 .container {
     padding: 20px;
     font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
     max-width: 500px;
-    /* Немного сузил для лучшего вида */
     margin: 0 auto;
     color: #eee;
     background-color: #1a1a1a;
-    /* Темный фон всей страницы */
     min-height: 100vh;
+    box-sizing: border-box;
 }
 
+/* Фиксированная шапка */
 .stickyHeader {
     position: sticky;
     top: 0;
@@ -21,7 +20,14 @@
     border-bottom: 1px solid #333;
 }
 
-/* Карточка для авторизации и обертка для ввода */
+.header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+}
+
+/* Карточки и секции ввода */
 .card {
     background-color: #242424;
     border-radius: 16px;
@@ -40,37 +46,57 @@
     border: 1px solid #333;
 }
 
-/* Поле ввода: черное с белыми буквами */
-.textarea,
-.input {
+/* Поля ввода (Общие стили) */
+.input,
+.textarea {
     width: 100%;
-    background-color: #000000;
+    background-color: #0c0c0c;
     color: #ffffff;
     border: 1px solid #444;
     border-radius: 8px;
-    padding: 14px;
+    padding: 12px;
     box-sizing: border-box;
     font-family: inherit;
-    font-size: 16px;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.inputSection .textarea {
-    padding: 10px 12px; /* Компактные отступы только здесь */
     font-size: 15px;
-    height: 80px;
-    background-color: #0c0c0c;
+    outline: none;
+    transition: border-color 0.2s, box-shadow 0.2s;
 }
 
+.textarea {
+    height: 100px;
+    resize: none;
+}
+
+.input:focus,
+.textarea:focus {
+    border-color: #007bff;
+    box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.1);
+}
+
+/* Кнопки */
+.button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: #007bff;
+    color: white;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+    font-weight: 600;
+    transition: background-color 0.2s, opacity 0.2s;
+}
+
+/* Кнопка внутри формы логина */
 .authForm .button {
-    height: 48px; /* Возвращаем крупную кнопку для логина */
+    height: 48px;
     width: 100%;
     font-size: 16px;
 }
 
+/* Кнопка добавления заметки */
 .inputSection .button {
-    height: 36px; 
+    height: 36px;
     padding: 0 16px;
     font-size: 14px;
     width: auto;
@@ -78,76 +104,16 @@
     min-width: 120px;
 }
 
-.textarea {
-    width: 100%;
-    background-color: #0c0c0c; /* Сделали чуть темнее для контраста с карточкой */
-    color: #ffffff;
-    border: 1px solid #333;
-    border-radius: 8px;
-    padding: 10px 12px; /* Уменьшили падинги внутри инпута */
-    box-sizing: border-box;
-    font-family: inherit;
-    font-size: 15px; /* Шрифт чуть меньше */
-    height: 80px;   /* Уменьшили начальную высоту */
-    resize: none;
-    outline: none;
-    transition: border-color 0.2s;
-}
-
-.textarea:focus,
-.input:focus {
-    border-color: #007bff;
-}
-
-.button {
-    position: relative;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-
-    height: 36px; 
-    padding: 0 12px;
-    font-size: 14px;
-    width: auto; 
-    align-self: flex-end; 
-    min-width: 120px;
-}
-
-.btnLoader {
-    width: 18px;
-    height: 18px;
-    border: 2px solid rgba(255, 255, 255, 0.3);
-    border-top-color: #ffffff;
-    /* Белый цвет для контраста с синей кнопкой */
-    border-radius: 50%;
-    animation: btnSpin 0.8s linear infinite;
-}
-
-@keyframes btnSpin {
-    to {
-        transform: rotate(360deg);
-    }
-}
-
-/* Визуальное состояние заблокированной кнопки */
-.button:disabled {
-    opacity: 0.7;
-    cursor: not-allowed;
-}
-
 .button:hover {
     background-color: #0069d9;
 }
 
-
-
-.header {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 15px;
+.button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
 }
 
+/* Вспомогательные кнопки */
 .logoutBtn {
     padding: 8px 16px;
     background: transparent;
@@ -156,6 +122,7 @@
     border-radius: 6px;
     cursor: pointer;
     font-size: 14px;
+    transition: all 0.2s;
 }
 
 .logoutBtn:hover {
@@ -173,34 +140,57 @@
     font-size: 14px;
 }
 
-.inlineTextarea:focus {
-    color: #007bff;
-    transition: color 0.2s;
+/* Загрузчики и спиннеры */
+.btnLoader {
+    width: 18px;
+    height: 18px;
+    border: 2px solid rgba(255, 255, 255, 0.3);
+    border-top-color: #ffffff;
+    border-radius: 50%;
+    animation: btnSpin 0.8s linear infinite;
 }
 
-.connectingOverlay {
+@keyframes btnSpin {
+    to { transform: rotate(360deg); }
+}
+
+/* Полноэкранные оверлеи */
+.globalOverlay {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+    background: rgba(0, 0, 0, 0.75);
+    backdrop-filter: blur(4px);
     display: flex;
     flex-direction: column;
     justify-content: center;
     align-items: center;
-    height: 100vh;
-    background-color: #1a1a1a;
+    z-index: 9999;
     color: white;
-    text-align: center;
+    animation: fadeIn 0.3s ease-out;
 }
 
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+/* Статус сервера */
 .serverStatus {
     position: fixed;
-    bottom: 10px;
-    right: 10px;
+    bottom: 15px;
+    right: 15px;
     font-size: 12px;
     color: #aaa;
     display: flex;
     align-items: center;
-    gap: 5px;
-    background: rgba(0, 0, 0, 0.5);
-    padding: 5px 10px;
+    gap: 8px;
+    background: rgba(36, 36, 36, 0.8);
+    padding: 6px 12px;
     border-radius: 20px;
+    border: 1px solid #333;
 }
 
 .online {
@@ -218,32 +208,12 @@
     border-radius: 50%;
 }
 
-.globalOverlay {
-    position: fixed;
-    top: 0;
-    left: 0;
-    width: 100vw;
-    height: 100vh;
-    background: rgba(0, 0, 0, 0.7);
-    /* Темный фон с прозрачностью */
-    backdrop-filter: blur(4px);
-    /* Размытие заднего фона для красоты */
-    display: flex;
-    flex-direction: column;
-    justify-content: center;
-    align-items: center;
-    z-index: 9999;
-    /* Поверх всего */
-    color: white;
-}
-
-.statusText {
-    text-align: center;
+/* Списки и перетаскивание */
+.listSection {
+    width: 100%;
     margin-top: 20px;
-}
-
-.dragHandle:active {
-    cursor: grabbing;
+    padding-bottom: 80px;
+    min-height: 300px;
 }
 
 .dragListWrapper {
@@ -255,14 +225,25 @@
 .dragIcon {
     color: #555;
     font-size: 18px;
-    line-height: 1;
+    cursor: grab;
     user-select: none;
 }
 
-.listSection {
-    width: 100%;
-    max-width: 600px;
-    margin: 0 auto;
-    padding-bottom: 50px; /* Чтобы последнюю заметку было удобно тянуть */
-    min-height: 300px;    /* Чтобы было куда тянуть, если заметок мало */
+.dragIcon:active {
+    cursor: grabbing;
+}
+
+/* Адаптивность для мобильных устройств */
+@media (max-width: 600px) {
+    .container {
+        padding: 15px;
+    }
+    
+    .card {
+        padding: 16px;
+    }
+
+    .stickyHeader {
+        padding: 15px 0;
+    }
 }
