@@ -22,18 +22,18 @@ function App() {
     const [noteText, setNoteText] = useState('');
 
     const {
-        notesList, 
-        isReady,      
-        processingId, 
+        notesList,
+        isReady,
+        processingId,
         isServerAwake,
-        handleSaveNote, 
-        handleUpdateNote, 
-        handleDeleteNote, 
+        handleSaveNote,
+        handleUpdateNote,
+        handleDeleteNote,
         handleDragEnd
     } = useNotes(auth.isAuthenticated);
 
-    const sensors = useSensors(useSensor(PointerSensor, { 
-        activationConstraint: { distance: 8 } 
+    const sensors = useSensors(useSensor(PointerSensor, {
+        activationConstraint: { distance: 8 }
     }));
 
     // Определяем, нужно ли показывать слой "просыпания"
@@ -54,7 +54,7 @@ function App() {
             {/* Статус сервера в углу (маленькая точка) */}
             <div className={s.serverStatus}>
                 <span className={isServerAwake ? s.online : s.offline}></span>
-                {isServerAwake ? 'Online' : 'Connecting...'}
+                {processingId ? 'Синхронизация...' : isServerAwake ? 'В сети' : 'Сервер спит'}
             </div>
 
             <header style={{ padding: '10px 0' }}>
@@ -88,7 +88,7 @@ function App() {
                         onClose={() => auth.setShowVerifyPrompt(false)}
                     />
 
-                    <NoteInput 
+                    <NoteInput
                         userName={auth.userName}
                         isGuest={auth.isGuest}
                         handleLogout={auth.handleLogout}
@@ -96,7 +96,7 @@ function App() {
                         setNoteText={setNoteText}
                         handleSaveNote={() => handleSaveNote(noteText, setNoteText)}
                         processingId={processingId}
-                        disabled={!isServerAwake} 
+                        disabled={!isServerAwake}
                     />
 
                     <main className={s.listSection}>
@@ -105,13 +105,13 @@ function App() {
                                 <p>Заметок пока нет</p>
                             </div>
                         ) : (
-                            <DndContext 
-                                sensors={sensors} 
-                                collisionDetection={closestCenter} 
+                            <DndContext
+                                sensors={sensors}
+                                collisionDetection={closestCenter}
                                 onDragEnd={handleDragEnd}
                             >
-                                <SortableContext 
-                                    items={notesList.map(n => n.id)} 
+                                <SortableContext
+                                    items={notesList.map(n => n.id)}
                                     strategy={verticalListSortingStrategy}
                                 >
                                     <div className={s.dragListWrapper}>
