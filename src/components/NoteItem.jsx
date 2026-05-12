@@ -18,13 +18,13 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
         transform,
         transition,
         isDragging
-    } = useSortable({ id: note.id });
+    } = useSortable({ id: note.id, disabled: isSettingsOpen });
 
     // Стили для плавного перемещения
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
-        zIndex: isDragging ? 100 : 1,
+        zIndex: isSettingsOpen ? 5000 : (isDragging ? 100 : 1),
         opacity: isDragging ? 0.6 : 1,
     };
 
@@ -89,13 +89,13 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
         });
     };
 
-    const formattedDate = formatDate(displayDate);
+    const formattedDate = formatDate(displayDate);  
 
     return (
         <div
             ref={setNodeRef} // Реф для библиотеки DnD
             style={style}
-            className={s.noteItem}
+            className={`${s.noteItem} ${isSettingsOpen ? s.activeNote : ''}`}
         >
             {/* 1. Область для перетаскивания (Handle) */}
             <div

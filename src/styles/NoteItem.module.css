@@ -9,6 +9,8 @@
     box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
     display: flex;
     flex-direction: column;
+    position: relative;
+    transition: z-index 0s;
 }
 
 /* Плашка перетаскивания теперь имеет отступ справа, чтобы не пересекаться с крестиком */
@@ -31,6 +33,11 @@
 .dragHandle:hover {
     color: #007bff;
     background: rgba(255, 255, 255, 0.08);
+}
+
+.activeNote .dragHandle {
+    cursor: default; 
+    opacity: 0.3; 
 }
 
 .inlineTextarea {
@@ -155,4 +162,10 @@
     min-height: 24px; /* Чтобы футер не дергался при появлении кнопки */
     display: flex;
     align-items: center;
+}
+
+.activeNote {
+    z-index: 5000; /* Больше, чем у оверлея модалки */
+    outline: 2px solid #007bff; /* Опционально: подсветим края заметки */
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 }
