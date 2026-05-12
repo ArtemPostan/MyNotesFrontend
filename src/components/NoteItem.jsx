@@ -44,7 +44,7 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
         debounce((id, newText) => {
             onUpdate(id, newText);
         }, 1500)
-    ).current;   
+    ).current;
 
     const handleChange = (e) => {
         const newText = e.target.value;
@@ -61,35 +61,40 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
     const displayDate = isEdited ? note.updatedAt : note.createdAt;
     const label = isEdited ? "Обновлено " : "";
 
-    const formatDate = (dateValue) => {
-        if (!dateValue) return "";
+    const formatDate = (dateData) => {
+        if (!dateData) return "Дата неизвестна";
 
-        // Просто создаем объект даты. 
-        // Если в строке есть 'Z' или '+00:00', браузер сам сконвертирует время в местное.
-        const date = new Date(dateValue);
-
-        if (isNaN(date.getTime())) {
-            // Если пришел массив (на случай, если аннотация не сработала)
-            if (Array.isArray(dateValue)) {
-                const [year, month, day, hour, minute, second = 0] = dateValue;
-                return new Date(Date.UTC(year, month - 1, day, hour, minute, second))
-                    .toLocaleString('ru-RU', {
-                        day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit'
-                    });
+        try {
+            let d;
+            if (Array.isArray(dateData)) {
+                // Исправляем типичную проблему Java/Spring: [2026, 5, 12, 10, 30]
+                d = new Date(dateData[0], dateData[1] - 1, dateData[2], dateData[3] || 0, dateData[4] || 0);
+            } else {
+                d = new Date(dateData);
             }
-            return "Дата не указана";
-        }
 
-        return date.toLocaleString('ru-RU', {
-            day: '2-digit',
-            month: '2-digit',
-            year: 'numeric',
-            hour: '2-digit',
-            minute: '2-digit'
-        });
+            return d.toLocaleString('ru-RU', {
+                day: '2-digit',
+                month: '2-digit',
+                year: '2-digit',
+                hour: '2-digit',
+                minute: '2-digit'
+            });
+        } catch {
+            return "Ошибка даты";
+        }
     };
 
-    const formattedDate = formatDate(displayDate);  
+    const formattedDate = formatDate(displayDate);
+
+    if (note.content && note.content.startsWith('U2FsdGVkX1')) {
+        // Если текст начинается с сигнатуры AES (зашифрован), показываем лоадер
+        return (
+            <div className={s.noteItem} style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                <div className={s.btnLoader}></div>
+            </div>
+        );
+    }
 
     return (
         <div

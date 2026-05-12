@@ -4,7 +4,6 @@ import { storageService } from '../services/storageService';
 import { arrayMove } from '@dnd-kit/sortable';
 
 export const useNotes = (isAuthenticated) => {
-    // 1. Инициализация состояний
     const cachedNotes = storageService.getNotes() || [];
     const [notesList, setNotesList] = useState(cachedNotes);
     const [isConnecting, setIsConnecting] = useState(cachedNotes.length === 0);
@@ -12,7 +11,6 @@ export const useNotes = (isAuthenticated) => {
     const [isServerAwake, setIsServerAwake] = useState(false);
     const [isReady, setIsReady] = useState(false);
 
-    // Вспомогательный метод для дешифровки и обработки
     const processNoteResponse = useCallback((rawNote) => {
         return {
             ...rawNote,
@@ -21,75 +19,104 @@ export const useNotes = (isAuthenticated) => {
         };
     }, []);
 
-    // Функция загрузки данных
-    const fetchNotes = useCallback(async () => {
+    // 1. Улучшенная функция загрузки с проверкой пробуждения
+    const fetchNotes = useCallback(async (retryCount = 0) => {
         try {
             const response = await notesService.getAll();
-            // Данные дешифруются внутри сервиса getAll
-            setNotesList(response.data);
-            storageService.saveNotes(response.data);
+            
+            // Если запрос прошел успешно, значит сервер проснулся
             setIsServerAwake(true);
+            
+            // Мапим данные (дешифровка)
+            const decryptedData = response.data.map(n => processNoteResponse(n));
+            
+            setNotesList(decryptedData);
+            storageService.saveNotes(decryptedData);
+            
+            // Только здесь помечаем, что всё готово
             setIsReady(true);
         } catch (error) {
-            if (error.response) setIsServerAwake(true);
-            // Если есть кэш, мы всё равно помечаем систему как готовую
-            setIsReady(true);
+            console.error("Ошибка загрузки заметок:", error);
+            
+            // Если сервер не отвечает (503 или таймаут) и это первая попытка
+            if (retryCount < 1) {
+                console.log("Сервер спит, пробую еще раз через 3 секунды...");
+                setTimeout(() => fetchNotes(retryCount + 1), 3000);
+            } else {
+                // Если совсем всё плохо, работаем с кэшем, если он есть
+                if (cachedNotes.length > 0) {
+                    setIsReady(true);
+                }
+                setIsConnecting(false);
+            }
         } finally {
             setIsConnecting(false);
         }
-    }, []);
+    }, [processNoteResponse, cachedNotes.length]);
 
-    // Логика при загрузке и изменении статуса авторизации
     useEffect(() => {
         if (isAuthenticated) {
             const encryptionKey = localStorage.getItem('encryption_key');
 
+            // 2. Логика проверки ключа и кэша
             if (!encryptionKey) {
                 const cached = storageService.getNotes();
                 if (!cached || cached.length === 0) {
                     setIsReady(true);
                     setIsConnecting(false);
                 } else {
-                    // Если кэш есть, а ключа нет — тогда ждем (это старый юзер)
-                    setIsReady(false);
+                    setIsReady(false); // Ждем ключа для старого юзера
                 }
-            }
-
-            const cached = storageService.getNotes();
-            if (cached && cached.length > 0) {
-                try {
-                    const decrypted = cached.map(note => ({
-                        ...note,
-                        content: notesService.decrypt(note.content)
-                    }));
-                    setNotesList(decrypted);
-                    setIsReady(true);
-                } catch (e) {
-                    console.error("Ошибка дешифровки кэша", e);
+            } else {
+                // Если ключ есть, пробуем расшифровать кэш сразу для мгновенного показа
+                const cached = storageService.getNotes();
+                if (cached && cached.length > 0) {
+                    try {
+                        const decrypted = cached.map(note => processNoteResponse(note));
+                        setNotesList(decrypted);
+                        setIsReady(true);
+                    } catch {
+                        console.error("Кэш зашифрован другим ключом");
+                    }
                 }
             }
             fetchNotes();
         }
-    }, [isAuthenticated, fetchNotes]);
+    }, [isAuthenticated, fetchNotes, processNoteResponse]);
 
-    // Обработчики действий
+    // 3. Исправленный обработчик сохранения (Retry логика)
     const handleSaveNote = async (text, setNoteText) => {
         if (!text.trim()) return;
+        
         const tempId = `temp-${Date.now()}`;
-        setNotesList(prev => [{ id: tempId, content: text, updatedAt: new Date().toISOString() }, ...prev]);
+        const optimisticNote = { 
+            id: tempId, 
+            content: text, 
+            updatedAt: new Date().toISOString() 
+        };
+
+        setNotesList(prev => [optimisticNote, ...prev]);
         setNoteText('');
+        setProcessingId('new');
 
         try {
             const response = await notesService.create(text);
             const finalNote = processNoteResponse(response.data);
+            
             setNotesList(prev => {
                 const updated = prev.map(n => n.id === tempId ? finalNote : n);
                 storageService.saveNotes(updated);
                 return updated;
             });
+            setIsServerAwake(true);
         } catch (error) {
+            console.error("Ошибка сохранения:", error);
+            // Если ошибка из-за того, что сервер "уснул" в процессе
             setNotesList(prev => prev.filter(n => n.id !== tempId));
-            setNoteText(text);
+            setNoteText(text); // Возвращаем текст в поле ввода
+            alert("Сервер не ответил. Попробуйте еще раз через мгновение.");
+        } finally {
+            setProcessingId(null);
         }
     };
 
@@ -122,7 +149,7 @@ export const useNotes = (isAuthenticated) => {
         try {
             await notesService.delete(id);
             storageService.saveNotes(newNotes);
-        } catch (error) {
+        } catch {
             setNotesList(prev => {
                 const restored = [...prev];
                 restored.splice(index, 0, noteToDelete);
@@ -148,6 +175,7 @@ export const useNotes = (isAuthenticated) => {
             }
         }
     };
+    
 
     return {
         notesList,

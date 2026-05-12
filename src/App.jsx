@@ -22,33 +22,43 @@ function App() {
     const [noteText, setNoteText] = useState('');
 
     const {
-        notesList, isReady, isConnecting, processingId, isServerAwake,
-        handleSaveNote, handleUpdateNote, handleDeleteNote, handleDragEnd
+        notesList, 
+        isReady,      
+        processingId, 
+        isServerAwake,
+        handleSaveNote, 
+        handleUpdateNote, 
+        handleDeleteNote, 
+        handleDragEnd
     } = useNotes(auth.isAuthenticated);
 
-    const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 8 } }));
+    const sensors = useSensors(useSensor(PointerSensor, { 
+        activationConstraint: { distance: 8 } 
+    }));
 
-    // Экран загрузки
-    if (auth.isAuthenticated && (isConnecting || !isReady)) {
-        return (
-            <div className={s.connectingOverlay}>
-                <div className={s.btnLoader} style={{ width: '40px', height: '40px' }}></div>
-                <h2 style={{ color: '#fff', marginTop: '20px' }}>Синхронизация и дешифровка...</h2>
-            </div>
-        );
-    }
+    // Определяем, нужно ли показывать слой "просыпания"
+    const showWakeUpOverlay = auth.isAuthenticated && (!isServerAwake || !isReady);
 
     return (
         <div className={s.container}>
-            {/* Статус сервера */}
+            {/* Слой затемнения, если сервер спит (не блокирует весь экран, а накладывается сверху) */}
+            {showWakeUpOverlay && (
+                <div className={s.wakeUpOverlay}>
+                    <div className={s.wakeUpContent}>
+                        <div className={s.btnLoader}></div>
+                        <span>{!isServerAwake ? "Сервер просыпается..." : "Дешифровка..."}</span>
+                    </div>
+                </div>
+            )}
+
+            {/* Статус сервера в углу (маленькая точка) */}
             <div className={s.serverStatus}>
                 <span className={isServerAwake ? s.online : s.offline}></span>
-                {isServerAwake ? 'Сервер онлайн' : 'Сервер спит'}
+                {isServerAwake ? 'Online' : 'Connecting...'}
             </div>
 
-            {/* Главный заголовок */}
-            <header style={{ padding: '20px 0' }}>
-                <h1 style={{ textAlign: 'center', margin: 0, color: '#fff' }}>MyNotes 📝</h1>
+            <header style={{ padding: '10px 0' }}>
+                <h1 style={{ textAlign: 'center', margin: 0, color: '#fff', fontSize: '1.5rem' }}>MyNotes 📝</h1>
             </header>
 
             {!auth.isAuthenticated ? (
@@ -64,7 +74,7 @@ function App() {
                     onForgotClick={() => setShowForgotModal(true)}
                 />
             ) : (
-                <>
+                <div className={showWakeUpOverlay ? s.blurredContent : ''}>
                     <VerifyEmailModal
                         show={auth.showVerifyPrompt}
                         email={auth.formData.email}
@@ -86,16 +96,24 @@ function App() {
                         setNoteText={setNoteText}
                         handleSaveNote={() => handleSaveNote(noteText, setNoteText)}
                         processingId={processingId}
+                        disabled={!isServerAwake} 
                     />
 
                     <main className={s.listSection}>
                         {notesList.length === 0 ? (
                             <div style={{ textAlign: 'center', color: '#666', marginTop: '60px' }}>
-                                <p>Заметок нет</p>
+                                <p>Заметок пока нет</p>
                             </div>
                         ) : (
-                            <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
-                                <SortableContext items={notesList.map(n => n.id)} strategy={verticalListSortingStrategy}>
+                            <DndContext 
+                                sensors={sensors} 
+                                collisionDetection={closestCenter} 
+                                onDragEnd={handleDragEnd}
+                            >
+                                <SortableContext 
+                                    items={notesList.map(n => n.id)} 
+                                    strategy={verticalListSortingStrategy}
+                                >
                                     <div className={s.dragListWrapper}>
                                         {notesList.map(note => (
                                             <NoteItem
@@ -111,7 +129,7 @@ function App() {
                             </DndContext>
                         )}
                     </main>
-                </>
+                </div>
             )}
 
             <ForgotPasswordModal

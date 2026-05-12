@@ -247,3 +247,61 @@
         padding: 15px 0;
     }
 }
+
+.wakeUpOverlay {
+    position: fixed;
+    /* Размещаем плашку внизу или вверху, чтобы она не перекрывала весь центр */
+    bottom: 20px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 10000;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    pointer-events: none; /* Важно: клики проходят сквозь оверлей на список */
+}
+
+.wakeUpContent {
+    pointer-events: auto; /* А саму плашку можно сделать кликабельной, если нужно */
+    background: rgba(40, 40, 40, 0.95);
+    backdrop-filter: blur(10px); /* Легкое размытие только внутри плашки */
+    padding: 12px 20px;
+    border-radius: 50px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    border: 1px solid #ff9800; /* Оранжевая граница подчеркнет статус ожидания */
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+
+/* Эффект для контента на фоне */
+.blurredContent {
+    filter: grayscale(0.5); /* Немного обесцвечиваем фон */
+    pointer-events: none; /* Запрещаем взаимодействие */
+    user-select: none;
+}
+
+/* Статус сервера в углу */
+.serverStatus {
+    position: fixed;
+    bottom: 15px;
+    right: 15px;
+    font-size: 11px;
+    color: #888;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    background: rgba(0,0,0,0.5);
+    padding: 4px 10px;
+    border-radius: 10px;
+    z-index: 10001;
+}
+
+.online { width: 8px; height: 8px; background: #4caf50; border-radius: 50%; box-shadow: 0 0 5px #4caf50; }
+.offline { width: 8px; height: 8px; background: #ff9800; border-radius: 50%; animation: pulse 1.5s infinite; }
+
+@keyframes pulse {
+    0% { opacity: 1; }
+    50% { opacity: 0.3; }
+    100% { opacity: 1; }
+}
