@@ -1,4 +1,4 @@
-import s from '../App.module.css';
+import s from '../styles/App.module.css';
 
 function NoteInput({ noteText, setNoteText, handleSaveNote, processingId, userName, handleLogout }) {
     return (

@@ -1,5 +1,5 @@
 import React from 'react';
-import s from './SettingsModal.module.css';
+import s from '../styles/SettingsModal.module.css';
 
 const SettingsModal = ({ show, onClose }) => {
     if (!show) return null;

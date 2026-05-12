@@ -1,5 +1,5 @@
 import React from 'react';
-import s from './Auth.module.css';
+import s from '../styles/Auth.module.css';
 
 function AuthChoice({ onSelectGuest, onSelectEmail, isLoading }) {
     return (

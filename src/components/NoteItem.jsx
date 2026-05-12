@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import s from './NoteItem.module.css';
+import s from '../styles/NoteItem.module.css';
 import SettingsModal from './SettingsModal';
 import debounce from 'lodash.debounce';
 import { useSortable } from '@dnd-kit/sortable';

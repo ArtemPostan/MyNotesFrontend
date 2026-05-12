@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import s from './App.module.css';
+import s from './styles/App.module.css';
 
 // Хуки
 import { useNotes } from './hooks/useNotes';

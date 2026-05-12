@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import s from '../App.module.css';
+import s from '../styles/App.module.css';
 import { authService } from '../services/authService';
 
 const ForgotPasswordModal = ({ show, onClose, userEmail }) => {
