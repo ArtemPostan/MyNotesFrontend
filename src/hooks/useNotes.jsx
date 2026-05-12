@@ -4,18 +4,19 @@ import { storageService } from '../services/storageService';
 import { arrayMove } from '@dnd-kit/sortable';
 
 export const useNotes = (isAuthenticated) => {
-    // 1. Инициализируем стейт из хранилища ОДИН РАЗ при создании хука
-    // Используем функцию в useState, чтобы расчет был ленивым
+    // 1. Инициализируем стейт из хранилища (ленивая инициализация)
     const [notesList, setNotesList] = useState(() => storageService.getNotes() || []);
 
     const [processingId, setProcessingId] = useState(null);
     const [isServerAwake, setIsServerAwake] = useState(true);
     const [isReady, setIsReady] = useState(false);
 
+    // Функция дешифровки и маппинга полей
     const processNoteResponse = useCallback((rawNote) => {
         return {
             ...rawNote,
             content: notesService.decrypt(rawNote.content),
+            isCollapsed: rawNote.isCollapsed || false, // Новое поле
             updatedAt: rawNote.updatedAt
         };
     }, []);
@@ -34,7 +35,7 @@ export const useNotes = (isAuthenticated) => {
             console.error("Сервер не ответил при загрузке:", error);
             setIsServerAwake(false);
             
-            // Проверяем кэш прямо здесь
+            // Если сервер спит, проверяем локальный кэш
             const currentCached = storageService.getNotes() || [];
             if (currentCached.length > 0) {
                 setIsReady(true);
@@ -42,12 +43,11 @@ export const useNotes = (isAuthenticated) => {
         }
     }, [processNoteResponse]);
 
-    // Логика при первом запуске
+    // Логика при монтировании и изменении авторизации
     useEffect(() => {
         if (!isAuthenticated) return;
 
         const encryptionKey = localStorage.getItem('encryption_key');
-        // Получаем актуальный кэш внутри эффекта
         const currentCached = storageService.getNotes() || [];
 
         if (encryptionKey && currentCached.length > 0) {
@@ -63,12 +63,11 @@ export const useNotes = (isAuthenticated) => {
         }
 
         fetchNotes();
-        
-        // Теперь зависимости "честные" и линтер будет молчать
     }, [isAuthenticated, fetchNotes, processNoteResponse]);
 
     // --- ОБРАБОТЧИКИ СОБЫТИЙ --- 
 
+    // Создание заметки
     const handleSaveNote = async (text, setNoteText) => {
         if (!text.trim()) return;
 
@@ -76,6 +75,7 @@ export const useNotes = (isAuthenticated) => {
         const optimisticNote = {
             id: tempId,
             content: text,
+            isCollapsed: false,
             updatedAt: new Date().toISOString()
         };
 
@@ -103,6 +103,7 @@ export const useNotes = (isAuthenticated) => {
         }
     };
 
+    // Обновление контента (текста)
     const handleUpdateNote = useCallback(async (id, newText) => {
         setProcessingId(id);
         setNotesList(prev => {
@@ -123,6 +124,30 @@ export const useNotes = (isAuthenticated) => {
         }
     }, [processNoteResponse]);
 
+    // Сворачивание/Разворачивание заметки
+    const handleToggleCollapse = useCallback(async (id) => {
+        const note = notesList.find(n => n.id === id);
+        if (!note) return;
+
+        const nextState = !note.isCollapsed;
+
+        // Оптимистичное обновление
+        setNotesList(prev => {
+            const updated = prev.map(n => n.id === id ? { ...n, isCollapsed: nextState } : n);
+            storageService.saveNotes(updated);
+            return updated;
+        });
+
+        try {
+            await notesService.update(id, { isCollapsed: nextState });
+            setIsServerAwake(true);
+        } catch {
+            setIsServerAwake(false);
+            console.error("Ошибка синхронизации сворачивания");
+        }
+    }, [notesList]);
+
+    // Удаление заметки
     const handleDeleteNote = async (id) => {
         if (!window.confirm("Удалить заметку?")) return;
 
@@ -146,6 +171,7 @@ export const useNotes = (isAuthenticated) => {
         }
     };
 
+    // Drag & Drop перемещение
     const handleDragEnd = async (event) => {
         const { active, over } = event;
         if (active && over && active.id !== over.id) {
@@ -172,6 +198,7 @@ export const useNotes = (isAuthenticated) => {
         isServerAwake,
         handleSaveNote,
         handleUpdateNote,
+        handleToggleCollapse, // Новое
         handleDeleteNote,
         handleDragEnd,
         setNotesList

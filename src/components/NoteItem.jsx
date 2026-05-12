@@ -1,11 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import s from '../styles/NoteItem.module.css';
 import SettingsModal from './SettingsModal';
 import debounce from 'lodash.debounce';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
+// Добавляем onToggleCollapse в пропсы
+function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
     const [text, setText] = useState(note.content);
     const textareaRef = useRef(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
@@ -26,19 +27,19 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
         transition,
         zIndex: isSettingsOpen ? 5000 : (isDragging ? 100 : 1),
         opacity: isDragging ? 0.6 : 1,
-    };
+    };   
 
-    const autoResize = () => {
+    const autoResize = useCallback(() => {
         const textarea = textareaRef.current;
-        if (textarea) {
+        if (textarea && !note.isCollapsed) {
             textarea.style.height = 'auto';
             textarea.style.height = textarea.scrollHeight + 'px';
         }
-    };
+    }, [note.isCollapsed]) // Пересчитываем при изменении текста или статуса сворачивания
 
     useEffect(() => {
         autoResize();
-    }, [text]);
+    }, [text, autoResize]);
 
     const debouncedUpdate = useRef(
         debounce((id, newText) => {
@@ -67,7 +68,6 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
         try {
             let d;
             if (Array.isArray(dateData)) {
-                // Исправляем типичную проблему Java/Spring: [2026, 5, 12, 10, 30]
                 d = new Date(dateData[0], dateData[1] - 1, dateData[2], dateData[3] || 0, dateData[4] || 0);
             } else {
                 d = new Date(dateData);
@@ -88,7 +88,6 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
     const formattedDate = formatDate(displayDate);
 
     if (note.content && note.content.startsWith('U2FsdGVkX1')) {
-        // Если текст начинается с сигнатуры AES (зашифрован), показываем лоадер
         return (
             <div className={s.noteItem} style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
                 <div className={s.btnLoader}></div>
@@ -98,9 +97,9 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
 
     return (
         <div
-            ref={setNodeRef} // Реф для библиотеки DnD
+            ref={setNodeRef}
             style={style}
-            className={`${s.noteItem} ${isSettingsOpen ? s.activeNote : ''}`}
+            className={`${s.noteItem} ${isSettingsOpen ? s.activeNote : ''} ${note.isCollapsed ? s.collapsed : ''}`}
         >
             {/* 1. Область для перетаскивания (Handle) */}
             <div
@@ -112,39 +111,54 @@ function NoteItem({ note, onDelete, onUpdate, isUpdating }) {
                 <span className={s.dragIcon}>⠿</span>
             </div>
 
-            {/* 2. Поле контента */}
-            <textarea
-                ref={textareaRef}
-                className={s.inlineTextarea}
-                value={text}
-                onChange={handleChange}
-                spellCheck="false"
-                rows="1"
-            />
+            {/* 2. Поле контента (скрывается через CSS или условие, если свернуто) */}
+            <div className={s.textareaContainer}>
+                <textarea
+                    ref={textareaRef}
+                    className={`${s.inlineTextarea} ${note.isCollapsed ? s.hiddenTextarea : ''}`}
+                    value={text}
+                    onChange={handleChange}
+                    spellCheck="false"
+                    rows="1"
+                    readOnly={note.isCollapsed} // Запрещаем ввод в свернутом виде
+                />
+            </div>
 
             {/* 3. Футер заметки */}
             <div className={s.noteFooter}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {/* Кнопка Свернуть/Развернуть */}
+                    <button
+                        className={s.collapseBtn}
+                        onClick={() => onToggleCollapse(note.id)}
+                        title={note.isCollapsed ? "Развернуть" : "Свернуть"}
+                    >
+                        {note.isCollapsed ? '▼' : '▲'}
+                    </button>
+
                     <span className={s.noteDate}>
                         {label}{formattedDate}
                     </span>
                     {isUpdating && <div className={s.miniLoader}></div>}
                 </div>
 
-                <button
-                    className={s.deleteBtn}
-                    onClick={() => onDelete(note.id)}
-                    disabled={isUpdating}
-                >
-                    ✕
-                </button>
-                <button
-                    className={s.settingsBtn}
-                    onClick={() => setIsSettingsOpen(true)}
-                    title="Настройки"
-                >
-                    ⚙️
-                </button>
+                <div className={s.footerActions}>
+                    <button
+                        className={s.deleteBtn}
+                        onClick={() => onDelete(note.id)}
+                        disabled={isUpdating}
+                    >
+                        ✕
+                    </button>
+                    <button
+                        className={s.settingsBtn}
+                        onClick={() => setIsSettingsOpen(true)}
+                        title="Настройки"
+                    >
+                        ⚙️
+                    </button>
+                </div>
+
                 <SettingsModal
                     show={isSettingsOpen}
                     onClose={() => setIsSettingsOpen(false)}

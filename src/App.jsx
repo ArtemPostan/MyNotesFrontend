@@ -29,6 +29,7 @@ function App() {
         handleSaveNote,
         handleUpdateNote,
         handleDeleteNote,
+        handleToggleCollapse,
         handleDragEnd
     } = useNotes(auth.isAuthenticated);
 
@@ -121,6 +122,7 @@ function App() {
                                                 note={note}
                                                 onDelete={handleDeleteNote}
                                                 onUpdate={handleUpdateNote}
+                                                onToggleCollapse={handleToggleCollapse}
                                                 isUpdating={processingId === note.id}
                                             />
                                         ))}

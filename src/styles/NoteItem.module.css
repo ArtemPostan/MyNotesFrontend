@@ -169,3 +169,40 @@
     outline: 2px solid #007bff; /* Опционально: подсветим края заметки */
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 }
+
+
+
+.noteItem.collapsed {
+    max-height: 50px; 
+    overflow: hidden;
+    opacity: 0.8;
+    /* Добавим плавности при сворачивании */
+    transition: max-height 0.3s ease, opacity 0.3s ease;
+}
+
+/* Стили для кнопки сворачивания */
+.collapseBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.2rem;
+    margin-right: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0;
+    color: inherit; /* Чтобы наследовала цвет текста темы */
+}
+
+.collapseBtn:hover {
+    opacity: 0.7;
+}
+
+/* Чтобы контент действительно пропадал визуально */
+.hiddenTextarea {
+    display: none;
+}
+
+.textareaContainer {
+    width: 100%;
+}
