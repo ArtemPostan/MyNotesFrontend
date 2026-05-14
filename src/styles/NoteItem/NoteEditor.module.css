@@ -60,3 +60,27 @@
     padding-bottom: 2px;
     min-height: 1.5rem;
 }
+
+/* Контейнер списка */
+.todoList {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    transition: all 0.3s ease;
+    overflow: hidden;
+}
+
+/* Свернутый список дел */
+.collapsedTodo {
+    max-height: 80px; /* Высота примерно 2-3 строк */
+    position: relative;
+    mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+    pointer-events: none; /* Чтобы нельзя было случайно нажать в свернутом виде */
+}
+
+/* Для обычного textarea у тебя уже должен быть класс .collapsed */
+.textarea.collapsed {
+    max-height: 60px;
+    overflow: hidden;
+    mask-image: linear-gradient(to bottom, black 50%, transparent 100%);
+}
