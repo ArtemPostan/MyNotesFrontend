@@ -121,8 +121,8 @@ function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
                 />
 
                 <NoteChecklist
-                    lines={lines}
-                    isVisible={note.isCompleted && !note.isCollapsed}
+                    lines={lines}                   
+                    isVisible={note.isCompleted === true && !note.isCollapsed}
                 />
             </div>
 

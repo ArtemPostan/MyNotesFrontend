@@ -17,6 +17,7 @@ export const useNotes = (isAuthenticated) => {
             ...rawNote,
             content: notesService.decrypt(rawNote.content),
             isCollapsed: rawNote.isCollapsed || false, // Новое поле
+            isCompleted: rawNote.isCompleted || false,
             updatedAt: rawNote.updatedAt
         };
     }, []);
@@ -34,7 +35,7 @@ export const useNotes = (isAuthenticated) => {
         } catch (error) {
             console.error("Сервер не ответил при загрузке:", error);
             setIsServerAwake(false);
-            
+
             // Если сервер спит, проверяем локальный кэш
             const currentCached = storageService.getNotes() || [];
             if (currentCached.length > 0) {
@@ -104,18 +105,32 @@ export const useNotes = (isAuthenticated) => {
     };
 
     // Обновление контента (текста)
-    const handleUpdateNote = useCallback(async (id, newText) => {
+    // Исправленная функция в useNotes.js
+    const handleUpdateNote = useCallback(async (id, newText, newIsCompleted) => {
         setProcessingId(id);
+
+        // 1. Оптимистично обновляем локальный стейт (чтобы плашка появилась МГНОВЕННО)
         setNotesList(prev => {
-            const updated = prev.map(n => n.id === id ? { ...n, content: newText } : n);
+            const updated = prev.map(n =>
+                n.id === id
+                    ? { ...n, content: newText, isCompleted: newIsCompleted ?? n.isCompleted }
+                    : n
+            );
             storageService.saveNotes(updated);
             return updated;
         });
 
         try {
-            const response = await notesService.update(id, { content: newText });
+            // 2. Отправляем на сервер ВСЕ поля
+            // Убедись, что notesService.update принимает объект с нужными полями
+            const response = await notesService.update(id, {
+                content: newText,
+                isCompleted: newIsCompleted
+            });
+
             setIsServerAwake(true);
             const finalNote = processNoteResponse(response.data);
+
             setNotesList(prev => prev.map(n => n.id === id ? finalNote : n));
         } catch {
             setIsServerAwake(false);
