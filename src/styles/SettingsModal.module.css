@@ -59,3 +59,10 @@
     from { opacity: 0; }
     to { opacity: 1; }
 }
+
+.activeIcon {
+    background-color: #e3f2fd; /* Светло-голубой фон */
+    border: 1px solid #2196f3;
+    border-radius: 8px;
+    transform: scale(1.1);
+}

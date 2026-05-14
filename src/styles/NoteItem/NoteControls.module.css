@@ -1,0 +1,58 @@
+.deleteBtn {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    width: 24px;
+    height: 24px;
+   
+    display: flex;            /* Включаем флексбокс */
+    align-items: center;      /* Центрируем по вертикали */
+    justify-content: center;   /* Центрируем по горизонтали */
+    padding: 0;               /* Убираем лишние отступы браузера */
+    line-height: 1;           /* Чтобы высота строки не распирала кнопку */    
+
+    background-color: rgba(255, 77, 79, 0.05);
+    color: #ff4d4f;
+    border: 1px solid rgba(255, 77, 79, 0.3);
+    border-radius: 6px;
+    cursor: pointer;
+    z-index: 10;
+    transition: all 0.2s;
+}
+
+.deleteBtn:hover {
+    background-color: #ff4d4f;
+    color: white;
+}
+
+.settingsBtn {
+    position: absolute;
+    right: 8px;
+    bottom: 8px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 18px;
+    opacity: 0.6;
+}
+
+.collapseBtn {
+    background: none;
+    border: none;
+    cursor: pointer;
+    font-size: 1.1rem;
+    color: inherit;
+}
+
+.miniLoader {
+    width: 12px;
+    height: 12px;
+    border: 2px solid rgba(255, 255, 255, 0.1);
+    border-top-color: #007bff;
+    border-radius: 50%;
+    animation: spin 0.8s linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}

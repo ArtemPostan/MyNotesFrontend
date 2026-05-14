@@ -1,17 +1,21 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
-import s from '../styles/NoteItem.module.css';
+// Импорт разделенных стилей
+import base from '../styles/NoteItem/BaseNote.module.css';
+import editor from '../styles/NoteItem/NoteEditor.module.css';
+import controls from '../styles/NoteItem/NoteControls.module.css';
+
 import SettingsModal from './SettingsModal';
+import NoteChecklist from './NoteChecklist';
 import debounce from 'lodash.debounce';
 import { useSortable } from '@dnd-kit/sortable';
 import { CSS } from '@dnd-kit/utilities';
 
-// Добавляем onToggleCollapse в пропсы
 function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
     const [text, setText] = useState(note.content);
     const textareaRef = useRef(null);
     const [isSettingsOpen, setIsSettingsOpen] = useState(false);
 
-    // Подключаем функционал сортировки dnd-kit
+    // Функционал dnd-kit
     const {
         attributes,
         listeners,
@@ -21,7 +25,6 @@ function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
         isDragging
     } = useSortable({ id: note.id, disabled: isSettingsOpen });
 
-    // Стили для плавного перемещения
     const style = {
         transform: CSS.Transform.toString(transform),
         transition,
@@ -35,7 +38,7 @@ function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
             textarea.style.height = 'auto';
             textarea.style.height = textarea.scrollHeight + 'px';
         }
-    }, [note.isCollapsed]) // Пересчитываем при изменении текста или статуса сворачивания
+    }, [note.isCollapsed]);
 
     useEffect(() => {
         autoResize();
@@ -50,8 +53,6 @@ function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
     const handleChange = (e) => {
         const newText = e.target.value;
         setText(newText);
-
-        // Сравниваем с исходным контентом из пропсов
         if (newText !== note.content) {
             debouncedUpdate(note.id, newText);
         }
@@ -64,7 +65,6 @@ function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
 
     const formatDate = (dateData) => {
         if (!dateData) return "Дата неизвестна";
-
         try {
             let d;
             if (Array.isArray(dateData)) {
@@ -72,86 +72,87 @@ function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
             } else {
                 d = new Date(dateData);
             }
-
             return d.toLocaleString('ru-RU', {
-                day: '2-digit',
-                month: '2-digit',
-                year: '2-digit',
-                hour: '2-digit',
-                minute: '2-digit'
+                day: '2-digit', month: '2-digit', year: '2-digit',
+                hour: '2-digit', minute: '2-digit'
             });
-        } catch {
-            return "Ошибка даты";
-        }
+        } catch { return "Ошибка даты"; }
     };
 
     const formattedDate = formatDate(displayDate);
 
+    // Заглушка для расшифровки
     if (note.content && note.content.startsWith('U2FsdGVkX1')) {
         return (
-            <div className={s.noteItem} style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
-                <div className={s.btnLoader}></div>
+            <div className={base.noteItem} style={{ display: 'flex', justifyContent: 'center', padding: '20px' }}>
+                <div className={controls.miniLoader}></div>
             </div>
         );
     }
+
+    const lines = text.split('\n');
 
     return (
         <div
             ref={setNodeRef}
             style={style}
-            className={`${s.noteItem} ${isSettingsOpen ? s.activeNote : ''} ${note.isCollapsed ? s.collapsed : ''}`}
+            className={`${base.noteItem} ${isSettingsOpen ? base.activeNote : ''} ${note.isCollapsed ? base.collapsed : ''}`}
         >
-            {/* 1. Область для перетаскивания (Handle) */}
+            {/* 1. Handle для перетаскивания */}
             <div
-                className={s.dragHandle}
+                className={base.dragHandle}
                 {...attributes}
                 {...listeners}
                 title="Зажмите, чтобы переместить"
             >
-                <span className={s.dragIcon}>⠿</span>
+                <span className={base.dragIcon}>⠿</span>
             </div>
 
-            {/* 2. Поле контента (скрывается через CSS или условие, если свернуто) */}
-            <div className={s.textareaContainer}>
+            {/* 2. Поле контента (использует стили editor) */}
+            <div className={editor.container}>
                 <textarea
-                    ref={textareaRef}                    
-                    className={`${s.inlineTextarea} ${note.isCollapsed ? s.collapsedTextarea : ''}`}
+                    ref={textareaRef}
+                    className={`${editor.textarea} ${note.isCollapsed ? editor.collapsed : ''}`}
                     value={text}
                     onChange={handleChange}
                     spellCheck="false"
                     rows="1"
                     readOnly={note.isCollapsed}
                 />
+
+                <NoteChecklist
+                    lines={lines}
+                    isVisible={note.isCompleted && !note.isCollapsed}
+                />
             </div>
 
             {/* 3. Футер заметки */}
-            <div className={s.noteFooter}>
+            <div className={base.noteFooter}>
                 <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
-                    {/* Кнопка Свернуть/Развернуть */}
                     <button
-                        className={s.collapseBtn}
+                        className={controls.collapseBtn}
                         onClick={() => onToggleCollapse(note.id)}
                         title={note.isCollapsed ? "Развернуть" : "Свернуть"}
                     >
                         {note.isCollapsed ? '▼' : '▲'}
                     </button>
 
-                    <span className={s.noteDate}>
+                    <span className={base.noteDate}>
                         {label}{formattedDate}
                     </span>
-                    {isUpdating && <div className={s.miniLoader}></div>}
+                    {isUpdating && <div className={controls.miniLoader}></div>}
                 </div>
 
-                <div className={s.footerActions}>
+                <div className={base.footerActions}>
                     <button
-                        className={s.deleteBtn}
+                        className={controls.deleteBtn}
                         onClick={() => onDelete(note.id)}
                         disabled={isUpdating}
                     >
                         ✕
                     </button>
                     <button
-                        className={s.settingsBtn}
+                        className={controls.settingsBtn}
                         onClick={() => setIsSettingsOpen(true)}
                         title="Настройки"
                     >
@@ -162,6 +163,8 @@ function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
                 <SettingsModal
                     show={isSettingsOpen}
                     onClose={() => setIsSettingsOpen(false)}
+                    isCompleted={note.isCompleted}
+                    onToggleTodo={() => onUpdate(note.id, text, !note.isCompleted)}
                 />
             </div>
         </div>

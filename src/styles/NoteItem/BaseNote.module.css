@@ -1,0 +1,45 @@
+.noteItem {
+    position: relative;
+    background-color: #242424;
+    color: #fff;
+    padding: 12px;
+    border-radius: 12px;
+    margin-top: 10px;
+    border: 1px solid #333;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+    display: flex;
+    flex-direction: column;
+}
+
+.activeNote {
+    z-index: 5000;
+    outline: 2px solid #007bff;
+    box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
+}
+
+.dragHandle {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    cursor: grab;
+    color: #444;
+    background: rgba(255, 255, 255, 0.03);
+    border-radius: 6px;
+    margin: 0 auto 8px auto;
+    padding: 4px;
+    font-size: 16px;
+    height: 16px;
+    width: 40px;
+}
+
+.noteFooter {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 8px;
+}
+
+.noteDate {
+    font-size: 11px;
+    color: #666;
+}
