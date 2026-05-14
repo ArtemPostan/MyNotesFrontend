@@ -2,7 +2,8 @@
     position: relative;
     background-color: #242424;
     color: #fff;
-    padding: 12px 12px; /* Сузили поля: сверху/снизу 12, сбоку 16 */
+    padding: 12px 12px;
+    /* Сузили поля: сверху/снизу 12, сбоку 16 */
     border-radius: 12px;
     margin-top: 10px;
     border: 1px solid #333;
@@ -36,23 +37,21 @@
 }
 
 .activeNote .dragHandle {
-    cursor: default; 
-    opacity: 0.3; 
+    cursor: default;
+    opacity: 0.3;
 }
 
 .inlineTextarea {
     width: 100%;
-    background: transparent;
+    resize: none;
+    overflow: hidden;
     border: none;
     outline: none;
-    resize: none;
-    color: #ffffff; 
+    background: transparent;
     font-family: inherit;
-    font-size: 15px; 
-    padding: 0;
-    margin-bottom: 4px;
+    font-size: 1rem;
+    line-height: 1.4;
     display: block;
-    overflow: hidden;
 }
 
 .noteFooter {
@@ -63,14 +62,14 @@
 }
 
 .noteDate {
-    font-size: 11px; 
-    color: #666;   
+    font-size: 11px;
+    color: #666;
     letter-spacing: 0.3px;
 }
 
 .deleteBtn {
     position: absolute;
-    top: 8px;    
+    top: 8px;
     right: 8px;
 
     width: 24px;
@@ -80,7 +79,7 @@
     color: #ff4d4f;
     border: 1px solid rgba(255, 77, 79, 0.3);
     border-radius: 6px;
-    
+
     cursor: pointer;
     display: flex;
     align-items: center;
@@ -105,25 +104,33 @@
     width: 12px;
     height: 12px;
     /* Убираем абсолютное позиционирование по центру */
-    display: inline-block; 
+    display: inline-block;
     vertical-align: middle;
-    
+
     border: 2px solid rgba(255, 255, 255, 0.1);
     border-top-color: #007bff;
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
-    margin-left: 5px; /* Отступ от даты */
+    margin-left: 5px;
+    /* Отступ от даты */
 }
 
 /* Упрощаем анимацию (убираем translate, чтобы не конфликтовать) */
 @keyframes spin {
-    from { transform: rotate(0deg); }
-    to { transform: rotate(360deg); }
+    from {
+        transform: rotate(0deg);
+    }
+
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 .noteContainer {
-    position: relative; /* Обязательно для позиционирования кнопки */
-    padding-bottom: 30px; /* Резервируем место под кнопку */
+    position: relative;
+    /* Обязательно для позиционирования кнопки */
+    padding-bottom: 30px;
+    /* Резервируем место под кнопку */
 }
 
 .settingsBtn {
@@ -159,21 +166,25 @@
 }
 
 .statusArea {
-    min-height: 24px; /* Чтобы футер не дергался при появлении кнопки */
+    min-height: 24px;
+    /* Чтобы футер не дергался при появлении кнопки */
     display: flex;
     align-items: center;
 }
 
 .activeNote {
-    z-index: 5000; /* Больше, чем у оверлея модалки */
-    outline: 2px solid #007bff; /* Опционально: подсветим края заметки */
+    z-index: 5000;
+    /* Больше, чем у оверлея модалки */
+    outline: 2px solid #007bff;
+    /* Опционально: подсветим края заметки */
     box-shadow: 0 0 20px rgba(0, 0, 0, 0.5);
 }
 
 
 
 .noteItem.collapsed {
-    max-height: 50px; 
+    padding-bottom: 8px;
+    max-height: 100px;
     overflow: hidden;
     opacity: 0.8;
     /* Добавим плавности при сворачивании */
@@ -191,18 +202,38 @@
     align-items: center;
     justify-content: center;
     padding: 0;
-    color: inherit; /* Чтобы наследовала цвет текста темы */
+    color: inherit;
+    /* Чтобы наследовала цвет текста темы */
 }
 
 .collapseBtn:hover {
     opacity: 0.7;
 }
 
-/* Чтобы контент действительно пропадал визуально */
-.hiddenTextarea {
-    display: none;
+.collapsedTextarea {
+    /* Фиксируем высоту на уровне одной строки */
+    height: 1.4em !important;
+    min-height: 1.4em !important;
+    max-height: 1.4em !important;
+
+    /* Стандартное многоточие для переполнения (однострочный вариант) */
+    white-space: nowrap;
+    /* Запрещаем перенос, чтобы текст шел в одну линию */
+    overflow: hidden;
+    text-overflow: ellipsis;
+    /* Добавляет "..." в конце */
+
+    /* Современный многострочный вариант (на случай, если захотите 2-3 строки) */
+    display: -webkit-box;
+    line-clamp: 1;
+    -webkit-box-orient: vertical;
+
+    /* Отключаем взаимодействие, чтобы нельзя было печатать в свернутом виде */
+    pointer-events: none;
+    cursor: default;
 }
 
 .textareaContainer {
     width: 100%;
+    overflow: hidden;
 }

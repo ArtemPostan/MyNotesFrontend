@@ -27,7 +27,7 @@ function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
         transition,
         zIndex: isSettingsOpen ? 5000 : (isDragging ? 100 : 1),
         opacity: isDragging ? 0.6 : 1,
-    };   
+    };
 
     const autoResize = useCallback(() => {
         const textarea = textareaRef.current;
@@ -114,13 +114,13 @@ function NoteItem({ note, onDelete, onUpdate, onToggleCollapse, isUpdating }) {
             {/* 2. Поле контента (скрывается через CSS или условие, если свернуто) */}
             <div className={s.textareaContainer}>
                 <textarea
-                    ref={textareaRef}
-                    className={`${s.inlineTextarea} ${note.isCollapsed ? s.hiddenTextarea : ''}`}
+                    ref={textareaRef}                    
+                    className={`${s.inlineTextarea} ${note.isCollapsed ? s.collapsedTextarea : ''}`}
                     value={text}
                     onChange={handleChange}
                     spellCheck="false"
                     rows="1"
-                    readOnly={note.isCollapsed} // Запрещаем ввод в свернутом виде
+                    readOnly={note.isCollapsed}
                 />
             </div>
 
