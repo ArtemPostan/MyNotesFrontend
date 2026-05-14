@@ -47,3 +47,16 @@
     align-items: center;
     justify-content: center;
 }
+
+.todoRow {
+    display: flex;
+    align-items: flex-start;
+    width: 100%;
+}
+
+/* Настраиваем textarea внутри списка, чтобы она не имела лишних рамок */
+.todoRow .textarea {
+    padding-top: 2px;
+    padding-bottom: 2px;
+    min-height: 1.5rem;
+}
