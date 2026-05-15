@@ -7,7 +7,7 @@ export const storageService = {
             localStorage.setItem(NOTES_KEY, JSON.stringify(notes));
         } catch (e) {
             console.error("Ошибка сохранения в кэш", e);
-        }
+        }        
     },
 
     // Получить заметки из кэша

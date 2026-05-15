@@ -4,39 +4,36 @@ import { storageService } from '../services/storageService';
 import { arrayMove } from '@dnd-kit/sortable';
 
 export const useNotes = (isAuthenticated) => {
-    // 1. Инициализируем стейт из хранилища (ленивая инициализация)
     const [notesList, setNotesList] = useState(() => storageService.getNotes() || []);
-
     const [processingId, setProcessingId] = useState(null);
     const [isServerAwake, setIsServerAwake] = useState(true);
     const [isReady, setIsReady] = useState(false);
 
-    // Функция дешифровки и маппинга полей
     const processNoteResponse = useCallback((rawNote) => {
+        // Добавляем проверку: если контент пришел зашифрованный (начинается с Salted__ или похож на AES), 
+        // мы не должны давать ему попасть в стейт в чистом виде.
+        // Но так как мы договорились, что бэкенд ВСЕГДА шлет текст, просто маппим поля.
         return {
             ...rawNote,
-            content: notesService.decrypt(rawNote.content),
-            isCollapsed: rawNote.isCollapsed || false, // Новое поле
+            content: rawNote.content || '', 
+            isCollapsed: rawNote.isCollapsed || false,
             isCompleted: rawNote.isCompleted || false,
             updatedAt: rawNote.updatedAt
         };
     }, []);
 
-    // Загрузка данных с сервера
     const fetchNotes = useCallback(async () => {
         try {
             const response = await notesService.getAll();
             setIsServerAwake(true);
 
-            const decryptedData = response.data.map(n => processNoteResponse(n));
-            setNotesList(decryptedData);
-            storageService.saveNotes(decryptedData);
+            const processedData = response.data.map(n => processNoteResponse(n));
+            setNotesList(processedData);
+            storageService.saveNotes(processedData);
             setIsReady(true);
         } catch (error) {
             console.error("Сервер не ответил при загрузке:", error);
             setIsServerAwake(false);
-
-            // Если сервер спит, проверяем локальный кэш
             const currentCached = storageService.getNotes() || [];
             if (currentCached.length > 0) {
                 setIsReady(true);
@@ -44,45 +41,34 @@ export const useNotes = (isAuthenticated) => {
         }
     }, [processNoteResponse]);
 
-    // Логика при монтировании и изменении авторизации
     useEffect(() => {
         if (!isAuthenticated) return;
-
-        const encryptionKey = localStorage.getItem('encryption_key');
         const currentCached = storageService.getNotes() || [];
-
-        if (encryptionKey && currentCached.length > 0) {
-            try {
-                const decrypted = currentCached.map(note => processNoteResponse(note));
-                setNotesList(decrypted);
-                setIsReady(true);
-            } catch (e) {
-                console.error("Ошибка дешифровки кэша:", e);
-            }
-        } else if (currentCached.length === 0) {
+        if (currentCached.length > 0) {
+            const processed = currentCached.map(note => processNoteResponse(note));
+            setNotesList(processed);
+            setIsReady(true);
+        } else {
             setIsReady(false);
         }
-
         fetchNotes();
     }, [isAuthenticated, fetchNotes, processNoteResponse]);
 
-    // --- ОБРАБОТЧИКИ СОБЫТИЙ --- 
-
-    // Создание заметки
     const handleSaveNote = async (text, setNoteText) => {
         if (!text.trim()) return;
 
         const tempId = `temp-${Date.now()}`;
         const optimisticNote = {
             id: tempId,
-            content: text,
+            content: text, // ТУТ ЧИСТЫЙ ТЕКСТ
             isCollapsed: false,
+            isCompleted: false,
             updatedAt: new Date().toISOString()
         };
 
         const updatedList = [optimisticNote, ...notesList];
         setNotesList(updatedList);
-        storageService.saveNotes(updatedList);
+        storageService.saveNotes(updatedList); // Сохраняем чистый текст в кэш
         setNoteText('');
         setProcessingId(tempId);
 
@@ -90,26 +76,31 @@ export const useNotes = (isAuthenticated) => {
             const response = await notesService.create(text);
             setIsServerAwake(true);
 
+            // ВНИМАНИЕ: Если бэкенд на этом этапе пришлет кракозябры в response.data,
+            // они перезапишут твой оптимистичный чистый текст в стейте и в КЭШЕ.
             const finalNote = processNoteResponse(response.data);
+            
             setNotesList(prev => {
                 const newList = prev.map(n => n.id === tempId ? finalNote : n);
-                storageService.saveNotes(newList);
+                storageService.saveNotes(newList); // Кэшируем результат от сервера
                 return newList;
             });
         } catch (error) {
             console.error("Ошибка сохранения:", error);
             setIsServerAwake(false);
+            // Если ошибка — удаляем оптимистичную заметку, чтобы не путать юзера
+            setNotesList(prev => prev.filter(n => n.id !== tempId));
         } finally {
             setProcessingId(null);
         }
     };
 
-    // Обновление контента (текста)
-    // Исправленная функция в useNotes.js
     const handleUpdateNote = useCallback(async (id, newText, newIsCompleted) => {
         setProcessingId(id);
 
-        // 1. Оптимистично обновляем локальный стейт (чтобы плашка появилась МГНОВЕННО)
+        // Сохраняем старое состояние на случай ошибки
+        const previousNotes = [...notesList];
+
         setNotesList(prev => {
             const updated = prev.map(n =>
                 n.id === id
@@ -121,8 +112,6 @@ export const useNotes = (isAuthenticated) => {
         });
 
         try {
-            // 2. Отправляем на сервер ВСЕ поля
-            // Убедись, что notesService.update принимает объект с нужными полями
             const response = await notesService.update(id, {
                 content: newText,
                 isCompleted: newIsCompleted
@@ -131,22 +120,27 @@ export const useNotes = (isAuthenticated) => {
             setIsServerAwake(true);
             const finalNote = processNoteResponse(response.data);
 
-            setNotesList(prev => prev.map(n => n.id === id ? finalNote : n));
+            setNotesList(prev => {
+                const newList = prev.map(n => n.id === id ? finalNote : n);
+                storageService.saveNotes(newList);
+                return newList;
+            });
         } catch {
             setIsServerAwake(false);
+            // В случае ошибки возвращаем как было
+            setNotesList(previousNotes);
+            storageService.saveNotes(previousNotes);
         } finally {
             setProcessingId(null);
         }
-    }, [processNoteResponse]);
+    }, [notesList, processNoteResponse]);
 
-    // Сворачивание/Разворачивание заметки
     const handleToggleCollapse = useCallback(async (id) => {
         const note = notesList.find(n => n.id === id);
         if (!note) return;
 
         const nextState = !note.isCollapsed;
 
-        // Оптимистичное обновление
         setNotesList(prev => {
             const updated = prev.map(n => n.id === id ? { ...n, isCollapsed: nextState } : n);
             storageService.saveNotes(updated);
@@ -158,11 +152,9 @@ export const useNotes = (isAuthenticated) => {
             setIsServerAwake(true);
         } catch {
             setIsServerAwake(false);
-            console.error("Ошибка синхронизации сворачивания");
         }
     }, [notesList]);
 
-    // Удаление заметки
     const handleDeleteNote = async (id) => {
         if (!window.confirm("Удалить заметку?")) return;
 
@@ -186,7 +178,6 @@ export const useNotes = (isAuthenticated) => {
         }
     };
 
-    // Drag & Drop перемещение
     const handleDragEnd = async (event) => {
         const { active, over } = event;
         if (active && over && active.id !== over.id) {
@@ -213,7 +204,7 @@ export const useNotes = (isAuthenticated) => {
         isServerAwake,
         handleSaveNote,
         handleUpdateNote,
-        handleToggleCollapse, // Новое
+        handleToggleCollapse,
         handleDeleteNote,
         handleDragEnd,
         setNotesList

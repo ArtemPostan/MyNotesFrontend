@@ -1,44 +1,21 @@
 import api from './api';
-import CryptoJS from 'crypto-js';
 
-const getSecretKey = () => localStorage.getItem('encryption_key');
-
-const encrypt = (text) => {
-    const key = getSecretKey();
-    if (!key || !text) return text;
-    return CryptoJS.AES.encrypt(text, key).toString();
-};
-
-const decrypt = (cipherText) => {
-    const key = localStorage.getItem('encryption_key');
-    if (!key || !cipherText) return cipherText;
-    if (!cipherText.startsWith('U2FsdGVkX1')) return cipherText;
-
-    try {
-        const bytes = CryptoJS.AES.decrypt(cipherText, key);
-        const originalText = bytes.toString(CryptoJS.enc.Utf8);
-        return originalText || cipherText;
-    } catch {
-        return cipherText;
-    }
-};
+// Мы больше не импортируем CryptoJS здесь, так как бэкенд расшифровывает данные сам.
+// Но если функции encrypt/decrypt используются где-то еще, 
+// мы оставим их "заглушками", чтобы приложение не упало.
 
 export const notesService = {
     getAll: async () => {
         const response = await api.get('/api/notes');
-        const decryptedData = Array.isArray(response.data)
-            ? response.data.map(note => ({
-                ...note,
-                content: decrypt(note.content)
-            }))
-            : [];
-        return { ...response, data: decryptedData };
+        // Бэкенд теперь присылает уже расшифрованный контент.
+        // Нам достаточно просто проверить, что это массив.
+        const data = Array.isArray(response.data) ? response.data : [];
+        return { ...response, data };
     },
 
     create: (content) => {
-        // Используем локальную функцию encrypt
-        const encryptedContent = encrypt(content);
-        return api.post('/api/notes', { content: encryptedContent });
+        // Отправляем чистый текст, бэкенд зашифрует его перед сохранением в БД.
+        return api.post('/api/notes', { content });
     },
 
     delete: (id) => api.delete(`/api/notes/${id}`),
@@ -48,10 +25,8 @@ export const notesService = {
             // Если data — это строка, превращаем её в объект
             const payload = typeof data === 'string' ? { content: data } : { ...data };
 
-            if (payload.content) {
-                payload.content = encrypt(payload.content);
-            }
-
+            // Мы больше не вызываем encrypt(payload.content) здесь.
+            // Просто отправляем данные как есть.
             return await api.patch(`/api/notes/${id}`, payload);
         } catch (error) {
             console.error("Ошибка при обновлении:", error);
@@ -63,7 +38,8 @@ export const notesService = {
         return await api.patch('/api/notes/reorder', noteIds);
     },
 
-    // Полезно экспортировать функции наружу, если они понадобятся в App.js
-    encrypt,
-    decrypt
+    // Заглушки для совместимости, если они импортируются в других частях приложения.
+    // Теперь они просто возвращают текст без изменений.
+    encrypt: (text) => text,
+    decrypt: (text) => text
 };

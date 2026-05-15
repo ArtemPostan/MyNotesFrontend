@@ -33,11 +33,15 @@ export function useAuth() {
                 res = await authService.register(formData);
             }
 
+            // Убеждаемся, что мы НЕ достаем encryption_key, так как он нам больше не нужен
             const { token, name: uName, isEmailVerified } = res.data;
 
             localStorage.setItem('token', token);
             localStorage.setItem('isEmailVerified', isEmailVerified);
             localStorage.setItem('userName', uName || formData.email.split('@')[0]);
+
+            // ПРИНУДИТЕЛЬНО удаляем старый ключ шифрования, если он остался от прошлых версий
+            localStorage.removeItem('encryption_key');
 
             setUserName(uName || formData.email.split('@')[0]);
             setIsAuthenticated(true);
@@ -56,7 +60,6 @@ export function useAuth() {
             const serverMessage = err.response?.data?.message;
 
             if (isLogin) {
-                // --- ОШИБКИ ПРИ ВХОДЕ ---
                 if (statusCode === 401 || serverMessage === "Invalid password") {
                     setMessage("Неверный пароль. Попробуйте еще раз.");
                 } else if (statusCode === 404 || serverMessage === "User not found") {
@@ -65,7 +68,6 @@ export function useAuth() {
                     setMessage("Не удалось войти. Проверьте данные.");
                 }
             } else {
-                // --- ОШИБКИ ПРИ РЕГИСТРАЦИИ ---
                 if (serverMessage === "Email already in use" || statusCode === 409) {
                     setMessage("Этот email уже занят. Попробуйте войти.");
                 } else if (serverMessage === "Password too weak") {
@@ -80,6 +82,7 @@ export function useAuth() {
     };
 
     const handleLogout = () => {
+        // Мы оставляем 'encryption_key' в списке удаления, чтобы окончательно вычистить его у всех юзеров
         const keysToRemove = ['token', 'encryption_key', 'userName', 'isGuest', 'isEmailVerified', 'mynotes_cache'];
         keysToRemove.forEach(key => localStorage.removeItem(key));
 
@@ -102,19 +105,14 @@ export function useAuth() {
             const rawData = err.response?.data;
             const rawMessage = typeof rawData === 'string' ? rawData : (rawData?.message || "");
 
-            console.error("ПОЛНАЯ ОШИБКА ОТ СЕРВЕРА:", rawData);
-
-            // ПРОВЕРКА 1: Удаленный ящик (Mail.ru и др.)
             if (rawMessage.toLowerCase().includes("550") ||
                 rawMessage.toLowerCase().includes("terminated") ||
                 rawMessage.toLowerCase().includes("unavailable")) {
                 setMessage("Эта почта удалена или недоступна (ошибка 550).");
             }
-            // ПРОВЕРКА 2: Обычная 400 ошибка
             else if (err.response?.status === 400) {
                 setMessage("Сервер отклонил адрес: " + (rawMessage || "некорректный email"));
             }
-            // ЗАПАСНОЙ ВАРИАНТ
             else {
                 setMessage(rawMessage || "Не удалось отправить код. Попробуйте позже.");
             }
