@@ -5,11 +5,11 @@
     width: 24px;
     height: 24px;
    
-    display: flex;            /* Включаем флексбокс */
-    align-items: center;      /* Центрируем по вертикали */
-    justify-content: center;   /* Центрируем по горизонтали */
-    padding: 0;               /* Убираем лишние отступы браузера */
-    line-height: 1;           /* Чтобы высота строки не распирала кнопку */    
+    display: flex;            
+    align-items: center;   
+    justify-content: center;   
+    padding: 0;            
+    line-height: 1;          
 
     background-color: rgba(255, 77, 79, 0.05);
     color: #ff4d4f;
@@ -17,7 +17,10 @@
     border-radius: 6px;
     cursor: pointer;
     z-index: 10;
-    transition: all 0.2s;
+    transition: all 0.2s;    
+    
+    flex-shrink: 0;
+    box-sizing: border-box;
 }
 
 .deleteBtn:hover {
@@ -47,10 +50,14 @@
 .miniLoader {
     width: 12px;
     height: 12px;
-    border: 2px solid rgba(255, 255, 255, 0.1);
-    border-top-color: #007bff;
+    border: 2px solid rgba(255, 77, 79, 0.2); 
+    border-top-color: #ff4d4f;                
     border-radius: 50%;
     animation: spin 0.8s linear infinite;
+    
+    /* КРИТИЧЕСКИЕ СВОЙСТВА ДЛЯ МОБИЛОК: */
+    flex-shrink: 0;       
+    box-sizing: border-box; 
 }
 
 @keyframes spin {

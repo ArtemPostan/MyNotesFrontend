@@ -33,14 +33,13 @@ export function useAuth() {
                 res = await authService.register(formData);
             }
 
-            // Убеждаемся, что мы НЕ достаем encryption_key, так как он нам больше не нужен
             const { token, name: uName, isEmailVerified } = res.data;
 
             localStorage.setItem('token', token);
             localStorage.setItem('isEmailVerified', isEmailVerified);
             localStorage.setItem('userName', uName || formData.email.split('@')[0]);
 
-            // ПРИНУДИТЕЛЬНО удаляем старый ключ шифрования, если он остался от прошлых версий
+            // Принудительно чистим старые ключи, если они завалялись в браузере
             localStorage.removeItem('encryption_key');
 
             setUserName(uName || formData.email.split('@')[0]);
@@ -82,15 +81,19 @@ export function useAuth() {
     };
 
     const handleLogout = () => {
-        // Мы оставляем 'encryption_key' в списке удаления, чтобы окончательно вычистить его у всех юзеров
+        // Очищаем локальное хранилище браузера
         const keysToRemove = ['token', 'encryption_key', 'userName', 'isGuest', 'isEmailVerified', 'mynotes_cache'];
         keysToRemove.forEach(key => localStorage.removeItem(key));
 
+        // ИСПРАВЛЕНО: Сбрасываем АБСОЛЮТНО все внутренние стейты авторизации,
+        // чтобы при входе другого пользователя форма была идеально чистой
         setIsAuthenticated(false);
         setIsGuest(false);
         setUserName('');
         setShowVerifyPrompt(false);
         setMessage("");
+        setIsCodeSent(false); // <-- Сбросили статус отправки кода
+        setCode('');         // <-- Сбросили введенный код подтверждения
         setFormData({ name: '', email: '', password: '' });
     };
 
@@ -109,11 +112,9 @@ export function useAuth() {
                 rawMessage.toLowerCase().includes("terminated") ||
                 rawMessage.toLowerCase().includes("unavailable")) {
                 setMessage("Эта почта удалена или недоступна (ошибка 550).");
-            }
-            else if (err.response?.status === 400) {
+            } else if (err.response?.status === 400) {
                 setMessage("Сервер отклонил адрес: " + (rawMessage || "некорректный email"));
-            }
-            else {
+            } else {
                 setMessage(rawMessage || "Не удалось отправить код. Попробуйте позже.");
             }
         } finally {

@@ -21,11 +21,14 @@ function App() {
     const [showForgotModal, setShowForgotModal] = useState(false);
     const [noteText, setNoteText] = useState('');
 
+    // Добавили извлечение переменной isSyncing из хука useNotes
     const {
         notesList,
         isReady,
         processingId,
         isServerAwake,
+        isSyncing,
+        processQueue,
         handleSaveNote,
         handleUpdateNote,
         handleDeleteNote,
@@ -37,25 +40,32 @@ function App() {
         activationConstraint: { distance: 8 }
     }));
 
-    // Определяем, нужно ли показывать слой "просыпания"
-    const showWakeUpOverlay = auth.isAuthenticated && (!isServerAwake || !isReady);
+    // ИЗМЕНЕНО: Слой "Дешифровка" показываем ТОЛЬКО при первой загрузке (пока кэш готовится).
+    // Если сервер спит, мы больше НЕ блокируем интерфейс этим оверлеем.
+    const showInitialLoading = auth.isAuthenticated && !isReady;
 
     return (
         <div className={s.container}>
-            {/* Слой затемнения, если сервер спит (не блокирует весь экран, а накладывается сверху) */}
-            {showWakeUpOverlay && (
+            {/* Первоначальная загрузка/дешифровка при входе в приложение */}
+            {showInitialLoading && (
                 <div className={s.wakeUpOverlay}>
-                    <div className={s.wakeUpContent}>
-                        <div className={s.btnLoader}></div>
-                        <span>{!isServerAwake ? "Сервер просыпается..." : "Дешифровка..."}</span>
-                    </div>
+                    <div className={s.initialLoader}></div>
+                    <span>Вход...</span>
                 </div>
             )}
 
             {/* Статус сервера в углу (маленькая точка) */}
-            <div className={s.serverStatus}>
+            <div
+                className={s.serverStatus}
+                onClick={() => !isServerAwake && processQueue()}
+                style={{ cursor: !isServerAwake ? 'pointer' : 'default' }}
+            >
                 <span className={isServerAwake ? s.online : s.offline}></span>
-                {processingId ? 'Синхронизация...' : isServerAwake ? 'В сети' : 'Сервер спит'}
+                {isSyncing || processingId
+                    ? 'Синхронизация...'
+                    : isServerAwake
+                        ? 'В сети'
+                        : 'Сервер спит (Нажмите для проверки)'}
             </div>
 
             <header style={{ padding: '10px 0' }}>
@@ -75,7 +85,8 @@ function App() {
                     onForgotClick={() => setShowForgotModal(true)}
                 />
             ) : (
-                <div className={showWakeUpOverlay ? s.blurredContent : ''}>
+                // Убрали размытие контента (blurredContent), если сервер просто спит
+                <div className={showInitialLoading ? s.blurredContent : ''}>
                     <VerifyEmailModal
                         show={auth.showVerifyPrompt}
                         email={auth.formData.email}
@@ -97,7 +108,7 @@ function App() {
                         setNoteText={setNoteText}
                         handleSaveNote={() => handleSaveNote(noteText, setNoteText)}
                         processingId={processingId}
-                        disabled={!isServerAwake}
+                        disabled={false} // ИЗМЕНЕНО: Разрешаем ввод текста в ЛЮБОМ случае, даже если сервер спит!
                     />
 
                     <main className={s.listSection}>

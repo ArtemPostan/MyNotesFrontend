@@ -151,7 +151,9 @@
 }
 
 @keyframes btnSpin {
-    to { transform: rotate(360deg); }
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Полноэкранные оверлеи */
@@ -173,8 +175,13 @@
 }
 
 @keyframes fadeIn {
-    from { opacity: 0; }
-    to { opacity: 1; }
+    from {
+        opacity: 0;
+    }
+
+    to {
+        opacity: 1;
+    }
 }
 
 /* Статус сервера */
@@ -238,7 +245,7 @@
     .container {
         padding: 15px;
     }
-    
+
     .card {
         padding: 16px;
     }
@@ -248,36 +255,56 @@
     }
 }
 
+/* Полностью прозрачный оверлей с эффектом матового стекла */
 .wakeUpOverlay {
     position: fixed;
-    /* Размещаем плашку внизу или вверху, чтобы она не перекрывала весь центр */
-    bottom: 20px;
-    left: 50%;
-    transform: translateX(-50%);
-    z-index: 10000;
+    top: 0;
+    left: 0;
+    width: 100vw;
+    height: 100vh;
+
+    /* Убираем белый цвет: делаем фон полностью прозрачным */
+    background-color: transparent;
+
+    /* Оставляем только размытие элементов за оверлеем */
+    backdrop-filter: blur(5px);
+    -webkit-backdrop-filter: blur(5px);
+    /* Для корректной работы на iPhone/Safari */
+
+    z-index: 9999;
     display: flex;
+    flex-direction: column;
     align-items: center;
     justify-content: center;
-    pointer-events: none; /* Важно: клики проходят сквозь оверлей на список */
+    gap: 12px;
 }
 
-.wakeUpContent {
-    pointer-events: auto; /* А саму плашку можно сделать кликабельной, если нужно */
-    background: rgba(40, 40, 40, 0.95);
-    backdrop-filter: blur(10px); /* Легкое размытие только внутри плашки */
-    padding: 12px 20px;
-    border-radius: 50px;
-    display: flex;
-    align-items: center;
-    gap: 12px;
-    border: 1px solid #ff9800; /* Оранжевая граница подчеркнет статус ожидания */
-    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+/* Сам лоадер (сделали чуть контрастнее, чтобы он хорошо читался на любом фоне) */
+.initialLoader {
+    width: 36px;
+    height: 36px;
+    border: 3px solid rgba(0, 123, 255, 0.15);
+    border-top-color: #007bff;
+    /* Яркий синий цвет дуги */
+    border-radius: 50%;
+    animation: spin 1s linear infinite;
+
+    flex-shrink: 0;
+    box-sizing: border-box;
+}
+
+@keyframes spin {
+    to {
+        transform: rotate(360deg);
+    }
 }
 
 /* Эффект для контента на фоне */
 .blurredContent {
-    filter: grayscale(0.5); /* Немного обесцвечиваем фон */
-    pointer-events: none; /* Запрещаем взаимодействие */
+    filter: grayscale(0.5);
+    /* Немного обесцвечиваем фон */
+    pointer-events: none;
+    /* Запрещаем взаимодействие */
     user-select: none;
 }
 
@@ -291,17 +318,38 @@
     display: flex;
     align-items: center;
     gap: 6px;
-    background: rgba(0,0,0,0.5);
+    background: rgba(0, 0, 0, 0.5);
     padding: 4px 10px;
     border-radius: 10px;
     z-index: 10001;
 }
 
-.online { width: 8px; height: 8px; background: #4caf50; border-radius: 50%; box-shadow: 0 0 5px #4caf50; }
-.offline { width: 8px; height: 8px; background: #ff9800; border-radius: 50%; animation: pulse 1.5s infinite; }
+.online {
+    width: 8px;
+    height: 8px;
+    background: #4caf50;
+    border-radius: 50%;
+    box-shadow: 0 0 5px #4caf50;
+}
+
+.offline {
+    width: 8px;
+    height: 8px;
+    background: #ff9800;
+    border-radius: 50%;
+    animation: pulse 1.5s infinite;
+}
 
 @keyframes pulse {
-    0% { opacity: 1; }
-    50% { opacity: 0.3; }
-    100% { opacity: 1; }
+    0% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+
+    100% {
+        opacity: 1;
+    }
 }
